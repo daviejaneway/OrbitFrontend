@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "pegjs": "^0.10.0",
+    "yargs": "^6.6.0"
+  },
+  "devDependencies": {
+    "mocha": "^3.2.0"
+  }
+}
