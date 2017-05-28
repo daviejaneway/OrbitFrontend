@@ -1,6 +1,21 @@
 import Foundation
+import OrbitCompilerUtils
 
 typealias SourcePosition = (line: Int, character: Int)
+
+extension OrbitError {
+    static func unexpectedLexicalElement(lexer: Lexer, str: String) -> OrbitError {
+        return OrbitError(message: "Found unexpected input at source position: \(lexer.currentPosition)\n'\(str)'")
+    }
+    
+    static func unknownLexicalRule(rule: TokenType) -> OrbitError {
+        return OrbitError(message: "Unknown lexical rule: '\(rule.name)'")
+    }
+    
+    static func duplicateLexicalRule(rule: TokenType) -> OrbitError {
+        return OrbitError(message: "Attempted to redefine lexical rule: '\(rule.name)' with pattern: \(rule.pattern)")
+    }
+}
 
 struct TokenType : Equatable {
     let name: String
@@ -81,8 +96,18 @@ class Lexer {
         self.rules = rules
     }
     
-    func extend(rule: TokenType) throws {
-        guard !self.rules.contains(rule) else { throw  }
+    func insert(rule: TokenType, atIndex: Int) throws {
+        guard !self.rules.contains(rule) else { throw OrbitError.duplicateLexicalRule(rule: rule) }
+        
+        self.rules.insert(rule, at: atIndex)
+    }
+    
+    func insert(rule: TokenType, before: TokenType) throws {
+        guard let idx = self.rules.index(of: before) else {
+            throw OrbitError.unknownLexicalRule(rule: before)
+        }
+        
+        try insert(rule: rule, atIndex: max(idx - 1, 0))
     }
     
     func tokenize(input: String) -> [Token]? {
