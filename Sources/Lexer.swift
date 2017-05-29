@@ -30,6 +30,8 @@ struct TokenType : Equatable {
     static let Shelf = TokenType(name: "Shelf", pattern: "\\.\\.\\.")
     static let Dot = TokenType(name: "Dot", pattern: "\\.")
     
+    static let Keyword = TokenType(name: "Keyword", pattern: "(api|type)")
+    
     static let LParen = TokenType(name: "LParen", pattern: "\\(")
     static let RParen = TokenType(name: "RParen", pattern: "\\)")
     
@@ -39,7 +41,8 @@ struct TokenType : Equatable {
     static let LBrace = TokenType(name: "LBrace", pattern: "\\{")
     static let RBrace = TokenType(name: "RBrace", pattern: "\\}")
     
-    static let Operator = TokenType(name: "Operator", pattern: "[\\+\\-\\*\\/\\^\\!\\?\\%\\&\\=\\<\\>\\|]+")
+    static let Assignment = TokenType(name: "Assignment", pattern: "\\=")
+    static let Operator = TokenType(name: "Operator", pattern: "[\\+\\-\\*\\/\\^\\!\\?\\%\\&\\<\\>\\|]+")
     
     static let Whitespace = TokenType(name: "Whitespace", pattern: "[ \t\n\r]")
     
@@ -48,9 +51,10 @@ struct TokenType : Equatable {
     }
     
     static let base = [
-        Whitespace, Real, Int, Identifier, TypeIdentifier,
+        Whitespace, Real, Int, Keyword,
+        Identifier, TypeIdentifier,
         Colon, Comma, Shelf, Dot, LParen, RParen,
-        LBracket, RBracket, LBrace, RBrace, Operator
+        LBracket, RBracket, LBrace, RBrace, Assignment, Operator
     ]
 }
 
@@ -86,7 +90,10 @@ public extension String {
     }
 }
 
-class Lexer {
+class Lexer : CompilationPhase {
+    typealias InputType = String
+    typealias OutputType = [Token]
+    
 	private (set) var currentPosition: SourcePosition = (line: 0, character: 0)
 	private var idx = 0
     
@@ -96,10 +103,10 @@ class Lexer {
         self.rules = rules
     }
     
-    func insert(rule: TokenType, atIndex: Int) throws {
+    func insert(rule: TokenType, atIndex: UInt) throws {
         guard !self.rules.contains(rule) else { throw OrbitError.duplicateLexicalRule(rule: rule) }
         
-        self.rules.insert(rule, at: atIndex)
+        self.rules.insert(rule, at: Int(atIndex))
     }
     
     func insert(rule: TokenType, before: TokenType) throws {
@@ -107,10 +114,10 @@ class Lexer {
             throw OrbitError.unknownLexicalRule(rule: before)
         }
         
-        try insert(rule: rule, atIndex: max(idx - 1, 0))
+        try insert(rule: rule, atIndex: UInt(idx))
     }
     
-    func tokenize(input: String) -> [Token]? {
+    func execute(input: String) throws -> [Token] {
         var tokens = [Token]()
         var content = input
         
@@ -143,8 +150,7 @@ class Lexer {
             }
             
             if !matched {
-                // TODO - Should throw here
-                return nil
+                throw OrbitError.unexpectedLexicalElement(lexer: self, str: content)
             }
         }
         

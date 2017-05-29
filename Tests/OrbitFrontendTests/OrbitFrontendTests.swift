@@ -5,10 +5,7 @@ class OrbitFrontendTests : XCTestCase {
     private func OrbTestLex(src: String, expectedTokens: [Token], expectedSourcePosition: SourcePosition? = nil) {
         let lexer = Lexer()
         
-        guard let result = lexer.tokenize(input: src) else {
-            XCTFail("No tokens")
-            return
-        }
+        let result = try! lexer.execute(input: src)
         
         if let esp = expectedSourcePosition {
             XCTAssertEqual(esp.line, lexer.currentPosition.line)
@@ -38,6 +35,16 @@ class OrbitFrontendTests : XCTestCase {
             Token(type: .Int, value: "33"),
             Token(type: .Int, value: "1697")
         ], expectedSourcePosition: (line: 0, character: 13))
+    }
+    
+    func testLexKeywords() {
+        OrbTestLex(src: "api", expectedTokens: [
+            Token(type: .Keyword, value: "api")
+        ])
+        
+        OrbTestLex(src: "type", expectedTokens: [
+            Token(type: .Keyword, value: "type")
+        ])
     }
     
     func testLexIdentifier() {
@@ -140,6 +147,16 @@ class OrbitFrontendTests : XCTestCase {
         ])
     }
     
+    func testLexAssignment() {
+        OrbTestLex(src: "=", expectedTokens: [
+            Token(type: .Assignment, value: "=")
+        ])
+        
+        OrbTestLex(src: " = ", expectedTokens: [
+            Token(type: .Assignment, value: "=")
+        ])
+    }
+    
     func testLexOperators() {
         OrbTestLex(src: "+", expectedTokens: [
             Token(type: .Operator, value: "+")
@@ -182,5 +199,27 @@ class OrbitFrontendTests : XCTestCase {
         OrbTestLex(src: "   123     ", expectedTokens: [
             Token(type: .Int, value: "123")
         ])
+    }
+    
+    func testLexerInsertRule() {
+        let lexer = Lexer(rules: [TokenType.Whitespace, TokenType.Dot])
+        
+        try! lexer.insert(rule: TokenType.Shelf, before: TokenType.Dot)
+        
+        XCTAssertEqual(3, lexer.rules.count)
+        XCTAssertEqual(TokenType.Whitespace, lexer.rules[0])
+        XCTAssertEqual(TokenType.Shelf, lexer.rules[1])
+        XCTAssertEqual(TokenType.Dot, lexer.rules[2])
+        
+        try! lexer.insert(rule: TokenType.Colon, before: TokenType.Whitespace)
+        
+        XCTAssertEqual(4, lexer.rules.count)
+        XCTAssertEqual(TokenType.Colon, lexer.rules[0])
+        XCTAssertEqual(TokenType.Whitespace, lexer.rules[1])
+        XCTAssertEqual(TokenType.Shelf, lexer.rules[2])
+        XCTAssertEqual(TokenType.Dot, lexer.rules[3])
+        
+        XCTAssertThrowsError(try lexer.insert(rule: TokenType.Comma, before: TokenType.Int))
+        XCTAssertThrowsError(try lexer.insert(rule: TokenType.Whitespace, before: TokenType.Whitespace))
     }
 }
