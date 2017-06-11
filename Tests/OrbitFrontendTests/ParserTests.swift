@@ -511,10 +511,52 @@ class ParserTests: XCTestCase {
         XCTAssertEqual(2, (lhs2.right as! IntExpression).value)
         XCTAssertEqual(3, rhs2.value)
         
-        parser.tokens = lex(source: "(1 * 3 - 3) + (2 + 2) + 9")
+        parser.tokens = lex(source: "2 * 3 + 2")
         
         result = (try! parser.parseExpression() as! BinaryExpression)
         
         print(result)
+        
+        parser.tokens = lex(source: "2")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "2.2")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "a")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "(2)")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "(2.2)")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "(a)")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "2 + 2")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "2.2 + 2.3")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "a + b")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "(2 + 2)")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "(2.3 + 2.1)")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "(abc + xyz)")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "(2 * 3) + (99)")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "(2 * 3 - 2) + (99) * 75 + 9")
+        XCTAssertNoThrow(try parser.parseExpression())
     }
 }

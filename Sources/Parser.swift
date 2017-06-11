@@ -598,7 +598,7 @@ class Parser : CompilationPhase {
             return expr
         }
         
-        let lhs = try parseValue()
+        let lhs = try parseRValue()
         
         guard self.hasNext() else { return lhs }
         
@@ -619,17 +619,19 @@ class Parser : CompilationPhase {
         
         guard next.type != .LParen else {
             _ = try consume()
-            let value = try parseValue()
+            let value = try parseRValue()
             
             _ = try expect(tokenType: .RParen)
             
             return value
         }
         
-        return try parseValue()
+        return try parseRValue()
     }
     
-    func parseValue() throws -> Expression {
+    // RValue meaning anything that can legally be on the left hand side of an assignment
+    // NOTE - Forget about C++ lvalue/rvalue here (maybe there's a better name for this).
+    func parseRValue() throws -> Expression {
         let expr = try expectAny(of: [.Identifier, .Int, .Real]) // TODO - calls
         
         switch expr.type {
