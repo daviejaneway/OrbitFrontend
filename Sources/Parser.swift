@@ -37,6 +37,18 @@ extension OrbitError {
     static func multipleReturns() -> OrbitError {
         return OrbitError(message: "To return multiple values from a method, use a Tuple")
     }
+    
+    static func redefining(`operator`: Operator, withPrecedence: OperatorPrecedence, against: Operator) -> OrbitError {
+        return OrbitError(message: "Attempted to redefine precedence for operator '\(`operator`.symbol)' in relation to '\(against.symbol)'")
+    }
+    
+    static func operatorExists(op: Operator) -> OrbitError {
+        return OrbitError(message: "Operator '\(op.symbol)' already exists in \(op.position) position")
+    }
+    
+    static func unknownOperator(symbol: String, position: OperatorPosition) -> OrbitError {
+        return OrbitError(message: "Unknown operator '\(symbol)' in \(position) position")
+    }
 }
 
 protocol Expression {}
@@ -98,6 +110,147 @@ struct StringExpression : ValueExpression {
 }
 
 protocol ExportableExpression : Expression {}
+
+enum OperatorPrecedence {
+    case Equal
+    case Greater
+    case Lesser
+    
+    func opposite() -> OperatorPrecedence {
+        switch self {
+            case .Equal: return .Equal
+            case .Greater: return .Lesser
+            case .Lesser: return .Greater
+        }
+    }
+}
+
+enum OperatorPosition {
+    case Prefix
+    case Infix
+    case Postfix
+}
+
+/**
+    Orbit operators are not based on numeric precedence levels. Instead,
+    an operator defines a set of relationships to other operators. If a
+    relationship for a given operator is not defined, it is assumed to be
+    of equal precedence.
+ */
+class Operator : Hashable, Equatable {
+    // This var will be incremented automatically every time a new Operator is init'd
+    private static var _operatorId: Int = 0
+    
+    static let Addition = Operator(symbol: "+")
+    static let Subtraction = Operator(symbol: "-")
+    
+    static let Multiplication = Operator(symbol: "*")
+    static let Division = Operator(symbol: "/")
+    static let Modulo = Operator(symbol: "%")
+    
+    static let Power = Operator(symbol: "**")
+    // MAYBE - static let Root = Operator(symbol: "√")
+    
+    static let Negation = Operator(symbol: "-", position: .Prefix)
+    static let Not = Operator(symbol: "!", position: .Prefix)
+    
+    private(set) static var operators = [
+        Addition, Subtraction,
+        Multiplication, Division, Modulo,
+        Power,
+        Negation, Not
+    ]
+    
+    let hashValue: Int
+
+    let symbol: String
+    let position: OperatorPosition
+    private(set) var relationships: [Operator : OperatorPrecedence]
+    
+    init(symbol: String, position: OperatorPosition = .Infix, relationships: [Operator : OperatorPrecedence] = [:]) {
+        self.symbol = symbol
+        self.relationships = relationships
+        self.hashValue = Operator._operatorId
+        self.position = position
+        
+        Operator._operatorId += 1
+    }
+    
+    func defineRelationship(other: Operator, precedence: OperatorPrecedence) throws {
+        guard self.relationships[other] == nil else { throw OrbitError.redefining(operator: self, withPrecedence: precedence, against: other) }
+        
+        self.relationships[other] = precedence
+        
+        guard other.relationships[self] == nil else { return } // Recursion jumps out here
+        
+        try other.defineRelationship(other: self, precedence: precedence.opposite())
+    }
+    
+    static func declare(op: Operator) throws {
+        guard !self.operators.contains(op) else { throw OrbitError.operatorExists(op: op) }
+        
+        self.operators.append(op)
+    }
+    
+    static func lookup(operatorWithSymbol: String, inPosition: OperatorPosition) throws -> Operator {
+        let ops = self.operators.filter { $0.symbol == operatorWithSymbol && $0.position == inPosition }
+        
+        // Shouldn't be possible to have two operators with the same symbol & position
+        guard ops.count == 1, let op = ops.first else { throw OrbitError.unknownOperator(symbol: operatorWithSymbol, position: inPosition) }
+        
+        return op
+    }
+    
+    static func ==(lhs: Operator, rhs: Operator) -> Bool {
+        return lhs.hashValue == rhs.hashValue ||
+            (lhs.symbol == rhs.symbol && lhs.position == rhs.position)
+    }
+    
+    static func initialiseBuiltInOperators() throws {
+        try Addition.defineRelationship(other: Subtraction, precedence: .Equal)
+        try Addition.defineRelationship(other: Multiplication, precedence: .Lesser)
+        try Addition.defineRelationship(other: Division, precedence: .Lesser)
+        try Addition.defineRelationship(other: Modulo, precedence: .Lesser)
+        try Addition.defineRelationship(other: Power, precedence: .Lesser)
+        try Addition.defineRelationship(other: Negation, precedence: .Lesser)
+        try Addition.defineRelationship(other: Not, precedence: .Lesser)
+        
+        try Subtraction.defineRelationship(other: Multiplication, precedence: .Lesser)
+        try Subtraction.defineRelationship(other: Division, precedence: .Lesser)
+        try Subtraction.defineRelationship(other: Modulo, precedence: .Lesser)
+        try Subtraction.defineRelationship(other: Power, precedence: .Lesser)
+        try Subtraction.defineRelationship(other: Negation, precedence: .Lesser)
+        try Subtraction.defineRelationship(other: Not, precedence: .Lesser)
+        
+        try Multiplication.defineRelationship(other: Multiplication, precedence: .Equal)
+        try Multiplication.defineRelationship(other: Power, precedence: .Lesser)
+        try Multiplication.defineRelationship(other: Modulo, precedence: .Equal)
+        try Multiplication.defineRelationship(other: Negation, precedence: .Lesser)
+        try Multiplication.defineRelationship(other: Not, precedence: .Lesser)
+        
+        try Division.defineRelationship(other: Modulo, precedence: .Lesser)
+        try Division.defineRelationship(other: Negation, precedence: .Lesser)
+        try Division.defineRelationship(other: Not, precedence: .Lesser)
+        
+        try Negation.defineRelationship(other: Not, precedence: .Equal)
+
+        /// DEBUG CODE, PRINTS OPERATORS IN ORDER OF PRECEDENCE
+//        let scores: [(Operator, Int)] = self.operators.map {
+//            let score = $0.relationships.reduce(0, { (result, pair) -> Int in
+//                switch pair.value {
+//                    case .Greater: return result + 1
+//                    default: return result
+//                }
+//            })
+//            
+//            return ($0, score)
+//        }
+//        
+//        print(scores.sorted(by: { (a: (Operator, Int), b: (Operator, Int)) -> Bool in
+//            return a.1 > b.1
+//        }).map { ($0.0.symbol, $0.1) })
+    }
+}
 
 struct TypeDefExpression : ExportableExpression {
     let name: TypeIdentifierExpression
@@ -173,10 +326,15 @@ struct PrefixExpression : Expression {
     let op: String
 }
 
+struct UnaryExpression : Expression {
+    let value: Expression
+    let op: Operator
+}
+
 struct BinaryExpression : Expression {
     let left: Expression
     let right: Expression
-    let op: String
+    let op: Operator
 }
 
 class Parser : CompilationPhase {
@@ -567,6 +725,12 @@ class Parser : CompilationPhase {
         return nil
     }
     
+    func parseOperator(position: OperatorPosition) throws -> Operator {
+        let op = try expect(tokenType: .Operator)
+        
+        return try Operator.lookup(operatorWithSymbol: op.value, inPosition: position)
+    }
+    
     func parseExpression() throws -> Expression {
         // Assuming this is an expression of the form `val op val`
         
@@ -580,14 +744,22 @@ class Parser : CompilationPhase {
             return lhs
         }
         
-        let op = try expect(tokenType: .Operator)
+        let op = try parseOperator(position: .Infix)
         let rhs = try parseExpression()
         
-        return BinaryExpression(left: lhs, right: rhs, op: op.value)
+        return BinaryExpression(left: lhs, right: rhs, op: op)
     }
     
     func parseAdditive() throws -> Expression {
         var next = try peek()
+        
+        guard next.type != .Operator else {
+            // Unary expression
+            let op = try parseOperator(position: .Prefix)
+            let expr = try parseAdditive()
+            
+            return UnaryExpression(value: expr, op: op)
+        }
         
         guard next.type != .LParen else {
             // Parenthesised/grouped expression
@@ -608,10 +780,22 @@ class Parser : CompilationPhase {
             return lhs
         }
         
-        let op = try expect(tokenType: .Operator)
+        let op = try parseOperator(position: .Infix)
         let rhs = try parseExpression()
         
-        return BinaryExpression(left: lhs, right: rhs, op: op.value)
+        if let right = rhs as? BinaryExpression {
+            if let rel = right.op.relationships[op] {
+                if rel == .Lesser {
+                    // Rewrite expression with precedence rules
+                    let newBin = BinaryExpression(left: lhs, right: right.left, op: op)
+                    return BinaryExpression(left: newBin, right: right.right, op: right.op)
+                }
+            }
+            
+            // if rel is not defined, assume precedence to be equal
+        }
+        
+        return BinaryExpression(left: lhs, right: rhs, op: op)
     }
     
     func parsePrimary() throws -> Expression {
@@ -629,12 +813,25 @@ class Parser : CompilationPhase {
         return try parseRValue()
     }
     
+    func parseUnary() throws -> Expression {
+        let opToken = try expect(tokenType: .Operator)
+        let value = try parseRValue()
+        
+        let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Prefix)
+        
+        return UnaryExpression(value: value, op: op)
+    }
+    
     // RValue meaning anything that can legally be on the left hand side of an assignment
     // NOTE - Forget about C++ lvalue/rvalue here (maybe there's a better name for this).
     func parseRValue() throws -> Expression {
-        let expr = try expectAny(of: [.Identifier, .Int, .Real]) // TODO - calls
+        let expr = try expectAny(of: [.Operator, .Identifier, .Int, .Real]) // TODO - calls, bools, strings etc
         
         switch expr.type {
+            case TokenType.Operator:
+                rewind(tokens: [expr])
+                return try parseUnary()
+            
             case TokenType.Identifier: return IdentifierExpression(value: expr.value)
             case TokenType.Int: return IntExpression(value: Int(expr.value)!)
             case TokenType.Real: return RealExpression(value: Double(expr.value)!)

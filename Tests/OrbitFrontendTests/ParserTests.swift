@@ -404,6 +404,49 @@ class ParserTests: XCTestCase {
         XCTAssertEqual("String", id6.value)
     }
     
+    func testOperatorPrecedenceOpposite() {
+        XCTAssertEqual(OperatorPrecedence.Equal, OperatorPrecedence.Equal.opposite())
+        XCTAssertEqual(OperatorPrecedence.Lesser, OperatorPrecedence.Greater.opposite())
+        XCTAssertEqual(OperatorPrecedence.Greater, OperatorPrecedence.Lesser.opposite())
+    }
+    
+    func testOperatorInit() {
+        let op1 = Operator(symbol: "+", relationships: [:])
+        let op2 = Operator(symbol: "-", relationships: [:])
+        
+        XCTAssertNotEqual(op1.hashValue, op2.hashValue)
+    }
+    
+    func testRedclareOperator() {
+        let op = Operator(symbol: "+")
+        XCTAssertThrowsError(try Operator.declare(op: op))
+        
+        let before = Operator.operators.count
+        
+        let newOp = Operator(symbol: "+++++")
+        XCTAssertNoThrow(try Operator.declare(op: newOp))
+        XCTAssertEqual(before + 1, Operator.operators.count)
+    }
+    
+    func testOperatorDefineRelationship() {
+        let newOp = Operator(symbol: "++")
+        
+        try! Operator.Addition.defineRelationship(other: newOp, precedence: .Lesser)
+        
+        XCTAssertEqual(OperatorPrecedence.Lesser, Operator.Addition.relationships[newOp])
+        
+        XCTAssertThrowsError(try Operator.Addition.defineRelationship(other: newOp, precedence: .Equal))
+    }
+    
+    // Debug test for dumping operator precedence
+//    func testOperatorSort() {
+//        do {
+//            try Operator.initialiseBuiltInOperators()
+//        } catch let ex {
+//            print(ex)
+//        }
+//    }
+    
     func testParsePairList() {
         let parser = Parser()
         
@@ -461,6 +504,12 @@ class ParserTests: XCTestCase {
     
     func testParseAdditive() {
         let parser = Parser()
+        
+        parser.tokens = lex(source: "-2")
+        
+        let unary = try! (parser.parseUnary() as! UnaryExpression)
+        
+        XCTAssertEqual("-", unary.op.symbol)
         
         parser.tokens = lex(source: "a + b")
         
@@ -558,5 +607,22 @@ class ParserTests: XCTestCase {
         
         parser.tokens = lex(source: "(2 * 3 - 2) + (99) * 75 + 9")
         XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "!(10 + -3)")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "-55 - -55")
+        XCTAssertNoThrow(try parser.parseExpression())
+    }
+    
+    func testParsePrec() {
+        try! Operator.initialiseBuiltInOperators()
+        
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "4 * 3 + 2 ** -3")
+        let expr = try! parser.parseExpression()
+        
+        print(expr)
     }
 }
