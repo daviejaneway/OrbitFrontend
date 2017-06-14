@@ -62,22 +62,41 @@ struct RootExpression : Expression {
 protocol NamedExpression : Expression {}
 protocol TypedExpression : Expression {}
 
-protocol ValueExpression : Expression {
+protocol GroupableExpression : Expression {
+    var grouped: Bool { get set }
+    
+    func dump() -> String
+}
+
+protocol ValueExpression : GroupableExpression {
     associatedtype ValueType
     
     var value: ValueType { get }
 }
 
-struct IdentifierExpression : NamedExpression, ValueExpression {
+protocol LValueExpression {}
+protocol RValueExpression {}
+
+struct IdentifierExpression : NamedExpression, LValueExpression, RValueExpression, ValueExpression {
     typealias ValueType = String
     
     let value: String
+    var grouped: Bool
+    
+    func dump() -> String {
+        return self.grouped ? "(\(self.value))" : self.value
+    }
 }
 
-struct TypeIdentifierExpression : NamedExpression, TypedExpression, ValueExpression {
+struct TypeIdentifierExpression : NamedExpression, TypedExpression, ValueExpression, RValueExpression {
     typealias ValueType = String
     
     let value: String
+    var grouped: Bool
+    
+    func dump() -> String {
+        return self.grouped ? "(\(self.value))" : self.value
+    }
 }
 
 struct PairExpression : NamedExpression, TypedExpression {
@@ -85,28 +104,48 @@ struct PairExpression : NamedExpression, TypedExpression {
     let type: TypeIdentifierExpression
 }
 
-struct IntExpression : ValueExpression {
+struct IntLiteralExpression : ValueExpression, RValueExpression {
     typealias ValueType = Int
     
     let value: Int
+    var grouped: Bool
+    
+    func dump() -> String {
+        return self.grouped ? "(\(self.value))" : "\(self.value)"
+    }
 }
 
-struct RealExpression : ValueExpression {
+struct RealLiteralExpression : ValueExpression, RValueExpression {
     typealias ValueType = Double
     
     let value: Double
+    var grouped: Bool
+    
+    func dump() -> String {
+        return self.grouped ? "(\(self.value))" : "\(self.value)"
+    }
 }
 
-struct BoolExpression : ValueExpression {
+struct BoolLiteralExpression : ValueExpression, RValueExpression {
     typealias ValueType = Bool
     
     let value: Bool
+    var grouped: Bool
+    
+    func dump() -> String {
+        return self.grouped ? "(\(self.value))" : "\(self.value)"
+    }
 }
 
-struct StringExpression : ValueExpression {
+struct StringLiteralExpression : ValueExpression, RValueExpression {
     typealias ValueType = String
     
     let value: String
+    var grouped: Bool
+    
+    func dump() -> String {
+        return self.grouped ? "(\(self.value))" : "\(self.value)"
+    }
 }
 
 protocol ExportableExpression : Expression {}
@@ -304,37 +343,60 @@ struct AssignmentStatement : Statement {
     let value: Expression
 }
 
-protocol CallExpression : Statement {
+typealias ArgType = GroupableExpression & RValueExpression
+
+protocol CallExpression : Statement, RValueExpression {
     var methodName: IdentifierExpression { get }
-    var args: [Expression] { get }
+    var args: [ArgType] { get }
 }
 
 struct StaticCallExpression : CallExpression {
+    
     let receiver: TypeIdentifierExpression
     let methodName: IdentifierExpression
-    let args: [Expression]
+    let args: [ArgType]
 }
 
 struct InstanceCallExpression : CallExpression {
+    
     let receiver: Expression
     let methodName: IdentifierExpression
-    let args: [Expression]
+    let args: [ArgType]
 }
 
-struct PrefixExpression : Expression {
-    let value: Expression
-    let op: String
-}
-
-struct UnaryExpression : Expression {
-    let value: Expression
+struct UnaryExpression : ValueExpression, RValueExpression {
+    let value: GroupableExpression
     let op: Operator
+    var grouped: Bool
+    
+    func dump() -> String {
+        return self.grouped ? "(\(self.op.symbol)\(self.value.dump()))" : "\(self.op.symbol)\(self.value.dump())"
+    }
 }
 
-struct BinaryExpression : Expression {
-    let left: Expression
-    let right: Expression
+struct BinaryExpression : ValueExpression, RValueExpression {
+    typealias ValueType = (left: GroupableExpression, right: GroupableExpression)
+    
+    var value: (left: GroupableExpression, right: GroupableExpression)
+    
+    let left: GroupableExpression
+    var right: GroupableExpression
     let op: Operator
+    
+    /// if a binary expression is grouped, all operator precedence is ignored
+    var grouped = false
+    
+    init(left: GroupableExpression, right: GroupableExpression, op: Operator, grouped: Bool = false) {
+        self.left = left
+        self.right = right
+        self.op = op
+        self.grouped = grouped
+        self.value = (left: left, right: right)
+    }
+    
+    func dump() -> String {
+        return self.grouped ? "(\(self.left.dump()) \(self.op.symbol) \(self.right.dump()))" : "\(self.left.dump()) \(self.op.symbol) \(self.right.dump())"
+    }
 }
 
 class Parser : CompilationPhase {
@@ -390,13 +452,13 @@ class Parser : CompilationPhase {
     func parseIdentifier() throws -> IdentifierExpression {
         let token = try expect(tokenType: .Identifier)
         
-        return IdentifierExpression(value: token.value)
+        return IdentifierExpression(value: token.value, grouped: false)
     }
     
     func parseIdentifier(expectedValue: String) throws -> IdentifierExpression {
         let token = try expect(tokenType: .Identifier, requirements: { $0.value == expectedValue })
         
-        return IdentifierExpression(value: token.value)
+        return IdentifierExpression(value: token.value, grouped: false)
     }
     
     func parseIdentifiers() throws -> [IdentifierExpression] {
@@ -453,7 +515,7 @@ class Parser : CompilationPhase {
     func parseTypeIdentifier() throws -> TypeIdentifierExpression {
         let token = try expect(tokenType: .TypeIdentifier)
         
-        return TypeIdentifierExpression(value: token.value)
+        return TypeIdentifierExpression(value: token.value, grouped: false)
     }
     
     func parseTypeIdentifiers() throws -> [TypeIdentifierExpression] {
@@ -731,7 +793,38 @@ class Parser : CompilationPhase {
         return try Operator.lookup(operatorWithSymbol: op.value, inPosition: position)
     }
     
-    func parseExpression() throws -> Expression {
+    func rewriteExpression(lhs: GroupableExpression, rhs: GroupableExpression, op: Operator) -> GroupableExpression? {
+        if var right = rhs as? BinaryExpression, !right.grouped {
+            if let rel = right.op.relationships[op] {
+                if rel == .Lesser {
+                    // Rewrite expression with precedence rules
+                    let newBin1 = BinaryExpression(left: lhs, right: right.left, op: op, grouped: true)
+                    let newBin2 = BinaryExpression(left: newBin1, right: right.right, op: right.op, grouped: false)
+                    
+                    return newBin2
+                } else if rel == .Equal {
+                    // Same precedence, apply associativity rules
+                    // TODO - Real associativity, assuming left-associative for now
+                    
+                    let newBin1 = BinaryExpression(left: lhs, right: right.left, op: op)
+                    
+                    right.right.grouped = true
+                    
+                    return BinaryExpression(left: newBin1, right: right.right, op: right.op)
+                }
+            }
+            
+            // if rel is not defined, assume precedence to be equal
+        }
+        
+        return nil
+    }
+    
+    /*
+        BUG - `-5 * 7 ** 2 - 9 + -4 + 3` does not group correctly.
+        The - 9 is binding to the right. Associativity is broken.
+    */
+    func parseExpression() throws -> GroupableExpression {
         // Assuming this is an expression of the form `val op val`
         
         let lhs = try parseAdditive()
@@ -747,25 +840,33 @@ class Parser : CompilationPhase {
         let op = try parseOperator(position: .Infix)
         let rhs = try parseExpression()
         
-        return BinaryExpression(left: lhs, right: rhs, op: op)
+        return BinaryExpression(left: lhs, right: rhs, op: op, grouped: false)
+        
+//        guard let rewrite = self.rewriteExpression(lhs: lhs, rhs: rhs, op: op) else {
+//            return BinaryExpression(left: lhs, right: rhs, op: op, grouped: true)
+//        }
+//        
+//        return rewrite
     }
     
-    func parseAdditive() throws -> Expression {
+    func parseAdditive() throws -> GroupableExpression {
         var next = try peek()
         
         guard next.type != .Operator else {
             // Unary expression
             let op = try parseOperator(position: .Prefix)
-            let expr = try parseAdditive()
+            let expr = try parseRValue()
             
-            return UnaryExpression(value: expr, op: op)
+            return UnaryExpression(value: expr, op: op, grouped: true)
         }
         
         guard next.type != .LParen else {
             // Parenthesised/grouped expression
             _ = try consume()
-            let expr = try parseAdditive()
+            var expr = try parseAdditive()
             _ = try expect(tokenType: .RParen)
+            
+            expr.grouped =  true
             
             return expr
         }
@@ -783,29 +884,25 @@ class Parser : CompilationPhase {
         let op = try parseOperator(position: .Infix)
         let rhs = try parseExpression()
         
-        if let right = rhs as? BinaryExpression {
-            if let rel = right.op.relationships[op] {
-                if rel == .Lesser {
-                    // Rewrite expression with precedence rules
-                    let newBin = BinaryExpression(left: lhs, right: right.left, op: op)
-                    return BinaryExpression(left: newBin, right: right.right, op: right.op)
-                }
-            }
-            
-            // if rel is not defined, assume precedence to be equal
+//        return BinaryExpression(left: lhs, right: rhs, op: op, grouped: false)
+        
+        guard let rewrite = self.rewriteExpression(lhs: lhs, rhs: rhs, op: op) else {
+            return BinaryExpression(left: lhs, right: rhs, op: op, grouped: false)
         }
         
-        return BinaryExpression(left: lhs, right: rhs, op: op)
+        return rewrite
     }
     
-    func parsePrimary() throws -> Expression {
+    func parsePrimary() throws -> GroupableExpression {
         let next = try peek()
         
         guard next.type != .LParen else {
             _ = try consume()
-            let value = try parseRValue()
+            var value = try parseRValue()
             
             _ = try expect(tokenType: .RParen)
+            
+            value.grouped = true
             
             return value
         }
@@ -813,18 +910,25 @@ class Parser : CompilationPhase {
         return try parseRValue()
     }
     
-    func parseUnary() throws -> Expression {
+    func parseUnary() throws -> GroupableExpression {
         let opToken = try expect(tokenType: .Operator)
         let value = try parseRValue()
         
         let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Prefix)
         
-        return UnaryExpression(value: value, op: op)
+        return UnaryExpression(value: value, op: op, grouped: true)
     }
     
-    // RValue meaning anything that can legally be on the left hand side of an assignment
+    // LValue meaning anything that can legally be on the left hand side of an assignment.
     // NOTE - Forget about C++ lvalue/rvalue here (maybe there's a better name for this).
-    func parseRValue() throws -> Expression {
+    func parseLValue() throws -> GroupableExpression & LValueExpression {
+        // TODO - Accessors & indexed expressions also allowed here
+        return try parseIdentifier()
+    }
+    
+    // RValue meaning anything that can legally be on the right hand side of an assignment.
+    // NOTE - Forget about C++ lvalue/rvalue here (maybe there's a better name for this).
+    func parseRValue() throws -> GroupableExpression {
         let expr = try expectAny(of: [.Operator, .Identifier, .Int, .Real]) // TODO - calls, bools, strings etc
         
         switch expr.type {
@@ -832,25 +936,29 @@ class Parser : CompilationPhase {
                 rewind(tokens: [expr])
                 return try parseUnary()
             
-            case TokenType.Identifier: return IdentifierExpression(value: expr.value)
-            case TokenType.Int: return IntExpression(value: Int(expr.value)!)
-            case TokenType.Real: return RealExpression(value: Double(expr.value)!)
+            case TokenType.Identifier: return IdentifierExpression(value: expr.value, grouped: false)
+            case TokenType.Int: return IntLiteralExpression(value: Int(expr.value)!, grouped: false)
+            case TokenType.Real: return RealLiteralExpression(value: Double(expr.value)!, grouped: false)
                 
             default: throw OrbitError.unexpectedToken(token: expr)
         }
     }
     
-//    func parseReturn() throws -> ReturnStatement {
-//        _ = try expect(tokenType: .Keyword, requirements: { $0.value == "return" })
-//        let value = try parse(token: )
-//        
-//        return ReturnStatement()
-//    }
-//    
-//    func parseAssignment() throws -> AssignmentStatement {
-//        return AssignmentStatement()
-//    }
-//    
+    func parseReturn() throws -> ReturnStatement {
+        _ = try expect(tokenType: .Keyword, requirements: { $0.value == "return" })
+        let value = try parseExpression()
+        
+        return ReturnStatement(value: value)
+    }
+    
+    func parseAssignment() throws -> AssignmentStatement {
+        let lhs = try parseIdentifier()
+        _ = try expect(tokenType: .Assignment)
+        let rhs = try parseExpression()
+        
+        return AssignmentStatement(name: lhs, value: rhs)
+    }
+//
 //    func parseStaticCall() throws -> StaticCallExpression {
 //        return StaticCallExpression()
 //    }

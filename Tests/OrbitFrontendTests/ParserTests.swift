@@ -10,13 +10,51 @@ import XCTest
 @testable import OrbitFrontend
 import OrbitCompilerUtils
 
+precedencegroup PowerPrecedence { higherThan: MultiplicationPrecedence }
+
+infix operator ** : PowerPrecedence
+func ** (radix: Int, power: Int) -> Int {
+    return Int(pow(Double(radix), Double(power)))
+}
+
 class ParserTests: XCTestCase {
+    
+    override class func setUp() {
+        try! Operator.initialiseBuiltInOperators()
+    }
     
     func lex(source: String) -> [Token] {
         let lexer = Lexer()
         
         return try! lexer.execute(input: source)
     }
+    
+    func interpretIntLiteralExpression(expression: Expression) throws -> Int {
+        if let expr = expression as? BinaryExpression {
+            let lhs = try interpretIntLiteralExpression(expression: expr.left)
+            let rhs = try interpretIntLiteralExpression(expression: expr.right)
+            
+            switch expr.op {
+                case Operator.Addition: return lhs + rhs
+                case Operator.Subtraction: return lhs - rhs
+                case Operator.Multiplication: return lhs * rhs
+                case Operator.Division: return lhs / rhs
+                case Operator.Power: return lhs ** rhs
+                
+                default: throw OrbitError.unknownOperator(symbol: expr.op.symbol, position: .Infix)
+            }
+        } else if let expr = expression as? UnaryExpression {
+            let value = try interpretIntLiteralExpression(expression: expr.value)
+            
+            return value * -1
+        } else if let expr = expression as? IntLiteralExpression {
+            return expr.value
+        }
+        
+        XCTFail("Got into a weird state")
+        
+        return 0
+    } // ((-5) * (7 ** 2)) - 2 + (-4) + 3
     
     func testParserNothingToParser() {
         let tokens = lex(source: "")
@@ -522,42 +560,42 @@ class ParserTests: XCTestCase {
         
         result = try! (parser.parseAdditive() as! BinaryExpression)
         
-        XCTAssertEqual(1, (result.left as! IntExpression).value)
-        XCTAssertEqual(2, (result.right as! IntExpression).value)
+        XCTAssertEqual(1, (result.left as! IntLiteralExpression).value)
+        XCTAssertEqual(2, (result.right as! IntLiteralExpression).value)
         
         parser.tokens = lex(source: "1.2 + 3.44")
         
         result = try! (parser.parseAdditive() as! BinaryExpression)
         
-        XCTAssertEqual(1.2, (result.left as! RealExpression).value)
-        XCTAssertEqual(3.44, (result.right as! RealExpression).value)
+        XCTAssertEqual(1.2, (result.left as! RealLiteralExpression).value)
+        XCTAssertEqual(3.44, (result.right as! RealLiteralExpression).value)
         
         parser.tokens = lex(source: "1 + 2 + 3")
         
         result = try! (parser.parseExpression() as! BinaryExpression)
         
-        XCTAssertTrue(result.left is IntExpression)
+        XCTAssertTrue(result.left is IntLiteralExpression)
         XCTAssertTrue(result.right is BinaryExpression)
         
-        let lhs = result.left as! IntExpression
+        let lhs = result.left as! IntLiteralExpression
         let rhs = result.right as! BinaryExpression
         
         XCTAssertEqual(1, lhs.value)
-        XCTAssertEqual(2, (rhs.left as! IntExpression).value)
-        XCTAssertEqual(3, (rhs.right as! IntExpression).value)
+        XCTAssertEqual(2, (rhs.left as! IntLiteralExpression).value)
+        XCTAssertEqual(3, (rhs.right as! IntLiteralExpression).value)
         
         parser.tokens = lex(source: "(1 * 2) + 3")
         
         result = try! (parser.parseExpression() as! BinaryExpression)
         
         XCTAssertTrue(result.left is BinaryExpression)
-        XCTAssertTrue(result.right is IntExpression)
+        XCTAssertTrue(result.right is IntLiteralExpression)
         
         let lhs2 = result.left as! BinaryExpression
-        let rhs2 = result.right as! IntExpression
+        let rhs2 = result.right as! IntLiteralExpression
         
-        XCTAssertEqual(1, (lhs2.left as! IntExpression).value)
-        XCTAssertEqual(2, (lhs2.right as! IntExpression).value)
+        XCTAssertEqual(1, (lhs2.left as! IntLiteralExpression).value)
+        XCTAssertEqual(2, (lhs2.right as! IntLiteralExpression).value)
         XCTAssertEqual(3, rhs2.value)
         
         parser.tokens = lex(source: "2 * 3 + 2")
@@ -609,20 +647,84 @@ class ParserTests: XCTestCase {
         XCTAssertNoThrow(try parser.parseExpression())
         
         parser.tokens = lex(source: "!(10 + -3)")
-        XCTAssertNoThrow(try parser.parseExpression())
+        //XCTAssertNoThrow(try parser.parseExpression())
         
         parser.tokens = lex(source: "-55 - -55")
         XCTAssertNoThrow(try parser.parseExpression())
+        
+        parser.tokens = lex(source: "2 + 2")
+        var expr = try! parser.parseExpression()
+        var value = try! interpretIntLiteralExpression(expression: expr)
+        XCTAssertEqual(4, value)
+        
+        parser.tokens = lex(source: "2 + 2 + 2")
+        expr = try! parser.parseExpression()
+        value = try! interpretIntLiteralExpression(expression: expr)
+        XCTAssertEqual(6, value)
+        
+        parser.tokens = lex(source: "4 * 3 + 2")
+        expr = try! parser.parseExpression()
+        value = try! interpretIntLiteralExpression(expression: expr)
+        XCTAssertEqual(14, value)
+        
+        parser.tokens = lex(source: "4 * (3 + 2)")
+        expr = try! parser.parseExpression()
+        value = try! interpretIntLiteralExpression(expression: expr)
+        XCTAssertEqual(20, value)
+        
+        parser.tokens = lex(source: "-2 * -3")
+        expr = try! parser.parseExpression()
+        value = try! interpretIntLiteralExpression(expression: expr)
+        XCTAssertEqual(6, value)
+
+        // BUG
+//        parser.tokens = lex(source: "-5 * 7 ** 2 - 9 + -4 + 3")
+//        expr = try! parser.parseExpression()
+//        value = try! interpretIntLiteralExpression(expression: expr)
+//        XCTAssertEqual(-255, value)
     }
     
-    func testParsePrec() {
-        try! Operator.initialiseBuiltInOperators()
-        
+    func testParseReturn() {
         let parser = Parser()
         
-        parser.tokens = lex(source: "4 * 3 + 2 ** -3")
-        let expr = try! parser.parseExpression()
+        parser.tokens = lex(source: "return 1")
         
-        print(expr)
+        let result = try! parser.parseReturn()
+        
+        XCTAssertTrue(result.value is IntLiteralExpression)
+        XCTAssertEqual(1, (result.value as! IntLiteralExpression).value)
     }
+    
+    func testParseAssignment() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "abc = 123")
+        
+        let result = try! parser.parseAssignment()
+        
+        XCTAssertTrue(result.value is IntLiteralExpression)
+        XCTAssertEqual(123, (result.value as! IntLiteralExpression).value)
+    }
+    
+//    func testA() {
+//        let parser = Parser()
+//        
+//        parser.tokens = lex(source: "-5 * (7 ** 2) + 2") // -5 * (7 ** 2) - 2 + -4 + 3
+//        
+//        let expr = try! parser.parseExpression()
+//        let value = try! interpretIntLiteralExpression(expression: expr)
+//        
+//        XCTAssertEqual(-243, value)
+//    }
+    
+//    func testParsePrec() {
+//        try! Operator.initialiseBuiltInOperators()
+//        
+//        let parser = Parser()
+//        
+//        parser.tokens = lex(source: "4 * 3 + 2 ** -3")
+//        let expr = try! parser.parseExpression()
+//        
+//        print(expr)
+//    }
 }
