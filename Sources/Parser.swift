@@ -362,11 +362,16 @@ struct StaticCallExpression : CallExpression, GroupableExpression {
     }
 }
 
-struct InstanceCallExpression : CallExpression {
+struct InstanceCallExpression : CallExpression, GroupableExpression {
+    var grouped: Bool = false
     
     let receiver: Expression
     let methodName: IdentifierExpression
     let args: [ArgType]
+    
+    func dump() -> String {
+        return ""
+    }
 }
 
 struct UnaryExpression : ValueExpression, RValueExpression {
@@ -900,7 +905,7 @@ class Parser : CompilationPhase {
             var expr = try parseAdditive()
             _ = try expect(tokenType: .RParen)
             
-            expr.grouped =  true
+            expr.grouped = true
             
             return expr
         }
@@ -910,6 +915,25 @@ class Parser : CompilationPhase {
         guard self.hasNext() else { return lhs }
         
         next = try peek()
+        
+        if next.type == .Dot {
+            // TODO - This sucks. Need to make instance calls recursive
+            let callRhs = try parseCallRhs()
+            
+            let call1 = InstanceCallExpression(grouped: false, receiver: lhs, methodName: callRhs.method, args: callRhs.args)
+            
+            guard self.hasNext() else { return call1 }
+            
+            let next2 = try peek()
+            
+            if next2.type == .Dot {
+                let callRhs2 = try parseCallRhs()
+                
+                return InstanceCallExpression(grouped: false, receiver: call1, methodName: callRhs2.method, args: callRhs2.args)
+            }
+            
+            return call1
+        }
         
         guard next.type == .Operator else {
             return lhs
@@ -960,6 +984,23 @@ class Parser : CompilationPhase {
         return try parseIdentifier()
     }
     
+    private func checkIfInstanceCall(token: Token) throws -> InstanceCallExpression? {
+        guard self.hasNext() else { return nil }
+        
+        let next = try peek()
+        
+        guard next.type == .Dot else { return nil }
+        
+        self.rewind(tokens: [token])
+        if let instanceCall = attempt(parseFunc: self.parseInstanceCall) as? InstanceCallExpression {
+            return instanceCall
+        }
+        
+        _ = try consume()
+        
+        return nil
+    }
+    
     // RValue meaning anything that can legally be on the right hand side of an assignment.
     // NOTE - Forget about C++ lvalue/rvalue here (maybe there's a better name for this).
     func parseRValue() throws -> GroupableExpression {
@@ -971,10 +1012,27 @@ class Parser : CompilationPhase {
                 return try parseUnary()
             
             case TokenType.Identifier:
-                // TODO - Instance calls & instance property access
                 return IdentifierExpression(value: expr.value, grouped: false)
-            case TokenType.Int: return IntLiteralExpression(value: Int(expr.value)!, grouped: false)
-            case TokenType.Real: return RealLiteralExpression(value: Double(expr.value)!, grouped: false)
+                // TODO - Instance calls & instance property access
+//                guard let call = try checkIfInstanceCall(token: expr) else {
+//                    return IdentifierExpression(value: expr.value, grouped: false)
+//                }
+//                
+//                return call
+            case TokenType.Int:
+                return IntLiteralExpression(value: Int(expr.value)!, grouped: false)
+//                guard let call = try checkIfInstanceCall(token: expr) else {
+//                    return IntLiteralExpression(value: Int(expr.value)!, grouped: false)
+//                }
+//                
+//                return call
+            case TokenType.Real:
+                return RealLiteralExpression(value: Double(expr.value)!, grouped: false)
+//                guard let call = try checkIfInstanceCall(token: expr) else {
+//                    return RealLiteralExpression(value: Double(expr.value)!, grouped: false)
+//                }
+//                
+//                return call
             case TokenType.TypeIdentifier:
                 self.rewind(tokens: [expr])
                 if let staticCall = attempt(parseFunc: self.parseStaticCall) as? StaticCallExpression {
@@ -1003,19 +1061,28 @@ class Parser : CompilationPhase {
         return AssignmentStatement(name: lhs, value: rhs)
     }
     
-    func parseStaticCall() throws -> StaticCallExpression {
-        let receiver = try parseTypeIdentifier()
+    func parseCallRhs() throws -> (method: IdentifierExpression, args: [ArgType]) {
         _ = try expect(tokenType: .Dot)
         let method = try parseIdentifier()
         let args = try parseExpressions()
         
-        return StaticCallExpression(grouped: false, receiver: receiver, methodName: method, args: args)
+        return (method: method, args: args)
+    }
+    
+    func parseStaticCall() throws -> StaticCallExpression {
+        let receiver = try parseTypeIdentifier()
+        let rhs = try parseCallRhs()
+        
+        return StaticCallExpression(grouped: false, receiver: receiver, methodName: rhs.method, args: rhs.args)
+    }
+    
+    func parseInstanceCall() throws -> InstanceCallExpression {
+        let receiver = try parseExpression()
+        let rhs = try parseCallRhs()
+        
+        return InstanceCallExpression(grouped: false, receiver: receiver, methodName: rhs.method, args: rhs.args)
     }
 //
-//    func parseInstanceCall() throws -> InstanceCallExpression {
-//        return InstanceCallExpression()
-//    }
-//    
 //    func parseStatement() throws -> Statement {
 //        let next = try peek()
 //        

@@ -773,6 +773,34 @@ class ParserTests: XCTestCase {
         XCTAssertThrowsError(try parser.parseStaticCall())
     }
     
+    func testParseInstanceCall() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "foo.bar()")
+        
+        var result = try! parser.parseExpression() as! InstanceCallExpression
+        
+        XCTAssertTrue(result.receiver is IdentifierExpression)
+        XCTAssertEqual("foo", (result.receiver as! IdentifierExpression).value)
+        XCTAssertEqual("bar", result.methodName.value)
+        XCTAssertEqual(0, result.args.count)
+        
+        parser.tokens = lex(source: "1.add(2, 3, 4, 5)")
+        
+        result = try! parser.parseExpression() as! InstanceCallExpression
+        
+        XCTAssertTrue(result.receiver is IntLiteralExpression)
+        XCTAssertEqual(1, (result.receiver as! IntLiteralExpression).value)
+        XCTAssertEqual("add", result.methodName.value)
+        XCTAssertEqual(4, result.args.count)
+        
+        parser.tokens = lex(source: "1.add(2).add(3)")
+        
+        result = try! parser.parseExpression() as! InstanceCallExpression
+        
+        XCTAssertTrue(result.receiver is InstanceCallExpression)
+    }
+    
 //    func testA() {
 //        let parser = Parser()
 //        
