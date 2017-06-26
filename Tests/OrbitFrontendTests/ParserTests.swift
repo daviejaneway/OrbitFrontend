@@ -676,7 +676,10 @@ class ParserTests: XCTestCase {
         expr = try! parser.parseExpression()
         value = try! interpretIntLiteralExpression(expression: expr)
         XCTAssertEqual(6, value)
-
+        
+        parser.tokens = lex(source: "-Int.add(1, 2) * 3")
+        XCTAssertNoThrow(try parser.parseExpression())
+        
         // BUG
 //        parser.tokens = lex(source: "-5 * 7 ** 2 - 9 + -4 + 3")
 //        expr = try! parser.parseExpression()
@@ -700,10 +703,74 @@ class ParserTests: XCTestCase {
         
         parser.tokens = lex(source: "abc = 123")
         
-        let result = try! parser.parseAssignment()
+        var result = try! parser.parseAssignment()
         
         XCTAssertTrue(result.value is IntLiteralExpression)
         XCTAssertEqual(123, (result.value as! IntLiteralExpression).value)
+        
+        parser.tokens = lex(source: "x = 1.3")
+        
+        result = try! parser.parseAssignment()
+        
+        XCTAssertTrue(result.value is RealLiteralExpression)
+        XCTAssertEqual(1.3, (result.value as! RealLiteralExpression).value)
+        
+        parser.tokens = lex(source: "x = a + b")
+        
+        result = try! parser.parseAssignment()
+        
+        XCTAssertTrue(result.value is BinaryExpression)
+        XCTAssertTrue((result.value as! BinaryExpression).left is IdentifierExpression)
+        XCTAssertTrue((result.value as! BinaryExpression).right is IdentifierExpression)
+        
+        parser.tokens = lex(source: "x = Int.next(1)")
+        
+        result = try! parser.parseAssignment()
+        
+        XCTAssertTrue(result.value is StaticCallExpression)
+        XCTAssertEqual("Int", (result.value as! StaticCallExpression).receiver.value)
+        XCTAssertEqual("next", (result.value as! StaticCallExpression).methodName.value)
+        XCTAssertEqual(1, (result.value as! StaticCallExpression).args.count)
+    }
+    
+    func testParseStaticCall() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "Int.next()")
+        
+        var result = try! parser.parseStaticCall()
+        
+        XCTAssertEqual("Int", result.receiver.value)
+        XCTAssertEqual("next", result.methodName.value)
+        XCTAssertEqual(0, result.args.count)
+        
+        parser.tokens = lex(source: "Real.add(2.2, 3.3)")
+        
+        result = try! parser.parseStaticCall()
+        
+        XCTAssertEqual("Real", result.receiver.value)
+        XCTAssertEqual("add", result.methodName.value)
+        XCTAssertEqual(2, result.args.count)
+        
+        XCTAssertTrue(result.args[0] is RealLiteralExpression)
+        XCTAssertTrue(result.args[1] is RealLiteralExpression)
+        
+        parser.tokens = lex(source: "Real.max(2.2, 3.3, 9.99, 5.123)")
+        
+        result = try! parser.parseStaticCall()
+        
+        XCTAssertEqual("Real", result.receiver.value)
+        XCTAssertEqual("max", result.methodName.value)
+        XCTAssertEqual(4, result.args.count)
+        
+        XCTAssertTrue(result.args[0] is RealLiteralExpression)
+        XCTAssertTrue(result.args[1] is RealLiteralExpression)
+        XCTAssertTrue(result.args[2] is RealLiteralExpression)
+        XCTAssertTrue(result.args[3] is RealLiteralExpression)
+        
+        parser.tokens = lex(source: "Foo.bar(")
+        
+        XCTAssertThrowsError(try parser.parseStaticCall())
     }
     
 //    func testA() {

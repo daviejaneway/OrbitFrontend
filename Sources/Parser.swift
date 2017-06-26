@@ -350,11 +350,16 @@ protocol CallExpression : Statement, RValueExpression {
     var args: [ArgType] { get }
 }
 
-struct StaticCallExpression : CallExpression {
+struct StaticCallExpression : CallExpression, GroupableExpression {
+    var grouped: Bool = false
     
     let receiver: TypeIdentifierExpression
     let methodName: IdentifierExpression
     let args: [ArgType]
+    
+    func dump() -> String {
+        return ""
+    }
 }
 
 struct InstanceCallExpression : CallExpression {
@@ -849,6 +854,35 @@ class Parser : CompilationPhase {
 //        return rewrite
     }
     
+    func parseExpressions() throws -> [ArgType] {
+        _ = try expect(tokenType: .LParen)
+        
+        do {
+            var expressions: [ArgType] = []
+            var next = try peek()
+            while next.type != .RParen {
+                guard next.type != .Comma else {
+                    _ = try consume()
+                    next = try peek()
+                    
+                    continue
+                }
+                
+                let expr = try parseExpression()
+                
+                expressions.append(expr as! ArgType)
+                
+                next = try peek()
+            }
+            
+            _ = try consume()
+            
+            return expressions
+        } catch {
+            throw OrbitError(message: "Unmatched parentheses")
+        }
+    }
+    
     func parseAdditive() throws -> GroupableExpression {
         var next = try peek()
         
@@ -929,17 +963,27 @@ class Parser : CompilationPhase {
     // RValue meaning anything that can legally be on the right hand side of an assignment.
     // NOTE - Forget about C++ lvalue/rvalue here (maybe there's a better name for this).
     func parseRValue() throws -> GroupableExpression {
-        let expr = try expectAny(of: [.Operator, .Identifier, .Int, .Real]) // TODO - calls, bools, strings etc
+        let expr = try expectAny(of: [.Operator, .Identifier, .TypeIdentifier, .Int, .Real]) // TODO - bools, strings etc
         
         switch expr.type {
             case TokenType.Operator:
                 rewind(tokens: [expr])
                 return try parseUnary()
             
-            case TokenType.Identifier: return IdentifierExpression(value: expr.value, grouped: false)
+            case TokenType.Identifier:
+                // TODO - Instance calls & instance property access
+                return IdentifierExpression(value: expr.value, grouped: false)
             case TokenType.Int: return IntLiteralExpression(value: Int(expr.value)!, grouped: false)
             case TokenType.Real: return RealLiteralExpression(value: Double(expr.value)!, grouped: false)
-                
+            case TokenType.TypeIdentifier:
+                self.rewind(tokens: [expr])
+                if let staticCall = attempt(parseFunc: self.parseStaticCall) as? StaticCallExpression {
+                    return staticCall
+                } else {
+                    // TODO - Enum member access, e.g. SomeEnum.CaseA
+                    throw OrbitError.unexpectedToken(token: expr)
+                }
+            
             default: throw OrbitError.unexpectedToken(token: expr)
         }
     }
@@ -958,11 +1002,16 @@ class Parser : CompilationPhase {
         
         return AssignmentStatement(name: lhs, value: rhs)
     }
+    
+    func parseStaticCall() throws -> StaticCallExpression {
+        let receiver = try parseTypeIdentifier()
+        _ = try expect(tokenType: .Dot)
+        let method = try parseIdentifier()
+        let args = try parseExpressions()
+        
+        return StaticCallExpression(grouped: false, receiver: receiver, methodName: method, args: args)
+    }
 //
-//    func parseStaticCall() throws -> StaticCallExpression {
-//        return StaticCallExpression()
-//    }
-//    
 //    func parseInstanceCall() throws -> InstanceCallExpression {
 //        return InstanceCallExpression()
 //    }
