@@ -11,9 +11,10 @@ This project builds a Swift framework that handles lexical & semantic processing
 The lexer is responsible for breaking a source file up into a set of tokens that the parser can use.
 
 For example, the following Orbit code:
-``` orbit
-abc = 123
-``` would be broken down into the tokens:
+
+	abc = 123
+
+would be broken down into the tokens:
 
 	1. Identifier("abc")
 	2. Assignment("=")
