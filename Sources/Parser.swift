@@ -246,6 +246,7 @@ class Operator : Hashable, Equatable {
     }
     
     static func initialiseBuiltInOperators() throws {
+        try Addition.defineRelationship(other: Addition, precedence: .Equal)
         try Addition.defineRelationship(other: Subtraction, precedence: .Equal)
         try Addition.defineRelationship(other: Multiplication, precedence: .Lesser)
         try Addition.defineRelationship(other: Division, precedence: .Lesser)
@@ -254,6 +255,7 @@ class Operator : Hashable, Equatable {
         try Addition.defineRelationship(other: Negation, precedence: .Lesser)
         try Addition.defineRelationship(other: Not, precedence: .Lesser)
         
+        try Subtraction.defineRelationship(other: Subtraction, precedence: .Equal)
         try Subtraction.defineRelationship(other: Multiplication, precedence: .Lesser)
         try Subtraction.defineRelationship(other: Division, precedence: .Lesser)
         try Subtraction.defineRelationship(other: Modulo, precedence: .Lesser)
@@ -267,12 +269,16 @@ class Operator : Hashable, Equatable {
         try Multiplication.defineRelationship(other: Negation, precedence: .Lesser)
         try Multiplication.defineRelationship(other: Not, precedence: .Lesser)
         
+        try Division.defineRelationship(other: Division, precedence: .Equal)
         try Division.defineRelationship(other: Modulo, precedence: .Lesser)
         try Division.defineRelationship(other: Negation, precedence: .Lesser)
         try Division.defineRelationship(other: Not, precedence: .Lesser)
         
+        try Negation.defineRelationship(other: Negation, precedence: .Equal)
         try Negation.defineRelationship(other: Not, precedence: .Equal)
-
+        
+        try Power.defineRelationship(other: Power, precedence: .Equal)
+        
         /// DEBUG CODE, PRINTS OPERATORS IN ORDER OF PRECEDENCE
 //        let scores: [(Operator, Int)] = self.operators.map {
 //            let score = $0.relationships.reduce(0, { (result, pair) -> Int in
@@ -358,16 +364,27 @@ struct StaticCallExpression : CallExpression, GroupableExpression {
     let args: [ArgType]
     
     func dump() -> String {
-        return ""
+        return "\(receiver.dump()).\(methodName.dump())(\(args.map { $0.dump() }.joined(separator: ",")))"
     }
 }
 
 struct InstanceCallExpression : CallExpression, GroupableExpression {
     var grouped: Bool = false
     
-    let receiver: Expression
+    let receiver: GroupableExpression
     let methodName: IdentifierExpression
     let args: [ArgType]
+    
+    func dump() -> String {
+        return "\(receiver.dump()).\(methodName.value)(\(args.map { $0.dump() }.joined(separator: ",")))"
+    }
+}
+
+struct PropertyAccessExpression : GroupableExpression {
+    var grouped: Bool = false
+    
+    let receiver: Expression
+    let propertyName: IdentifierExpression
     
     func dump() -> String {
         return ""
@@ -803,62 +820,6 @@ class Parser : CompilationPhase {
         return try Operator.lookup(operatorWithSymbol: op.value, inPosition: position)
     }
     
-    func rewriteExpression(lhs: GroupableExpression, rhs: GroupableExpression, op: Operator) -> GroupableExpression? {
-        if var right = rhs as? BinaryExpression, !right.grouped {
-            if let rel = right.op.relationships[op] {
-                if rel == .Lesser {
-                    // Rewrite expression with precedence rules
-                    let newBin1 = BinaryExpression(left: lhs, right: right.left, op: op, grouped: true)
-                    let newBin2 = BinaryExpression(left: newBin1, right: right.right, op: right.op, grouped: false)
-                    
-                    return newBin2
-                } else if rel == .Equal {
-                    // Same precedence, apply associativity rules
-                    // TODO - Real associativity, assuming left-associative for now
-                    
-                    let newBin1 = BinaryExpression(left: lhs, right: right.left, op: op)
-                    
-                    right.right.grouped = true
-                    
-                    return BinaryExpression(left: newBin1, right: right.right, op: right.op)
-                }
-            }
-            
-            // if rel is not defined, assume precedence to be equal
-        }
-        
-        return nil
-    }
-    
-    /*
-        BUG - `-5 * 7 ** 2 - 9 + -4 + 3` does not group correctly.
-        The - 9 is binding to the right. Associativity is broken.
-    */
-    func parseExpression() throws -> GroupableExpression {
-        // Assuming this is an expression of the form `val op val`
-        
-        let lhs = try parseAdditive()
-        
-        guard self.hasNext() else { return lhs }
-        
-        let next = try peek()
-        
-        guard next.type == .Operator else {
-            return lhs
-        }
-        
-        let op = try parseOperator(position: .Infix)
-        let rhs = try parseExpression()
-        
-        return BinaryExpression(left: lhs, right: rhs, op: op, grouped: false)
-        
-//        guard let rewrite = self.rewriteExpression(lhs: lhs, rhs: rhs, op: op) else {
-//            return BinaryExpression(left: lhs, right: rhs, op: op, grouped: true)
-//        }
-//        
-//        return rewrite
-    }
-    
     func parseExpressions() throws -> [ArgType] {
         _ = try expect(tokenType: .LParen)
         
@@ -888,93 +849,103 @@ class Parser : CompilationPhase {
         }
     }
     
-    func parseAdditive() throws -> GroupableExpression {
-        var next = try peek()
+    func parseParens() throws -> Expression {
+        _ = try expect(tokenType: .LParen)
+        let expr = try parseExpression()
+        _ = try expect(tokenType: .RParen)
         
-        guard next.type != .Operator else {
-            // Unary expression
-            let op = try parseOperator(position: .Prefix)
-            let expr = try parseRValue()
-            
-            return UnaryExpression(value: expr, op: op, grouped: true)
-        }
-        
-        guard next.type != .LParen else {
-            // Parenthesised/grouped expression
-            _ = try consume()
-            var expr = try parseAdditive()
-            _ = try expect(tokenType: .RParen)
-            
-            expr.grouped = true
-            
-            return expr
-        }
-        
-        let lhs = try parseRValue()
-        
-        guard self.hasNext() else { return lhs }
-        
-        next = try peek()
-        
-        if next.type == .Dot {
-            // TODO - This sucks. Need to make instance calls recursive
-            let callRhs = try parseCallRhs()
-            
-            let call1 = InstanceCallExpression(grouped: false, receiver: lhs, methodName: callRhs.method, args: callRhs.args)
-            
-            guard self.hasNext() else { return call1 }
-            
-            let next2 = try peek()
-            
-            if next2.type == .Dot {
-                let callRhs2 = try parseCallRhs()
-                
-                return InstanceCallExpression(grouped: false, receiver: call1, methodName: callRhs2.method, args: callRhs2.args)
-            }
-            
-            return call1
-        }
-        
-        guard next.type == .Operator else {
-            return lhs
-        }
-        
-        let op = try parseOperator(position: .Infix)
-        let rhs = try parseExpression()
-        
-//        return BinaryExpression(left: lhs, right: rhs, op: op, grouped: false)
-        
-        guard let rewrite = self.rewriteExpression(lhs: lhs, rhs: rhs, op: op) else {
-            return BinaryExpression(left: lhs, right: rhs, op: op, grouped: false)
-        }
-        
-        return rewrite
+        return expr
     }
     
-    func parsePrimary() throws -> GroupableExpression {
+    func parsePrimary() throws -> Expression {
         let next = try peek()
         
-        guard next.type != .LParen else {
-            _ = try consume()
-            var value = try parseRValue()
+        switch next.type {
+            case TokenType.TypeIdentifier:
+                let tid = try parseTypeIdentifier()
+                guard let call = self.attempt(parseFunc: { try self.parseStaticCall(lhs: tid) }) else {
+                    // TODO - Are type identifiers values? Can they be passed around as-is, or should they mimic Swift Type.self?
+                    return tid
+                }
+                return call
             
-            _ = try expect(tokenType: .RParen)
+            case TokenType.Identifier:
+                let id = try parseIdentifier()
+                guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: id) }) else { return id }
+                return call
             
-            value.grouped = true
+            case TokenType.Int:
+                let i = try parseIntLiteral()
+                guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: i) }) else { return i }
+                return call
             
-            return value
+            case TokenType.Real:
+                let r = try parseRealLiteral()
+                guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: r) }) else { return r }
+                return call
+            
+            case TokenType.LParen: return try parseParens()
+            case TokenType.Operator: return try parseUnary()
+            
+            default: throw OrbitError.unexpectedToken(token: next)
         }
+    }
+    
+    func parseBinaryOp(node: Expression, currentOperator: Operator? = nil) throws -> Expression {
+        var lhs = node
+        var op = try currentOperator ?? parseOperator(position: .Infix)
         
-        return try parseRValue()
+        while true {
+            let tokenPrecedence = currentOperator == nil ? OperatorPrecedence.Equal : op.relationships[currentOperator!]!
+            
+            if tokenPrecedence == .Greater {
+                return lhs
+            }
+            
+            guard self.hasNext() else {
+                return lhs
+            }
+            
+            var rhs = try parsePrimary()
+            
+            guard self.hasNext() else {
+                return BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true)
+            }
+            
+            let next = try peek()
+            
+            if next.type == .RParen {
+                return BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true)
+            }
+            
+            let nextOp = try parseOperator(position: .Infix)
+            
+            let nextPrecedence = nextOp.relationships[op]!
+            
+            if nextPrecedence != .Lesser {
+                rhs = try parseBinaryOp(node: rhs, currentOperator: nextOp)
+            }
+            
+            lhs = BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true)
+            op = nextOp
+        }
+    }
+    
+    func parseExpression() throws -> Expression {
+        let node = try parsePrimary()
+        
+        guard try self.hasNext() && peek().type == .Operator else { return node }
+        
+        return try parseBinaryOp(node: node)
     }
     
     func parseUnary() throws -> GroupableExpression {
         let opToken = try expect(tokenType: .Operator)
-        let value = try parseRValue()
+        let value = try parsePrimary()
         
         let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Prefix)
         
-        return UnaryExpression(value: value, op: op, grouped: true)
+        return UnaryExpression(value: value as! GroupableExpression, op: op, grouped: true)
     }
     
     // LValue meaning anything that can legally be on the left hand side of an assignment.
@@ -984,66 +955,16 @@ class Parser : CompilationPhase {
         return try parseIdentifier()
     }
     
-    private func checkIfInstanceCall(token: Token) throws -> InstanceCallExpression? {
-        guard self.hasNext() else { return nil }
+    func parseIntLiteral() throws -> IntLiteralExpression {
+        let i = try expect(tokenType: .Int)
         
-        let next = try peek()
-        
-        guard next.type == .Dot else { return nil }
-        
-        self.rewind(tokens: [token])
-        if let instanceCall = attempt(parseFunc: self.parseInstanceCall) as? InstanceCallExpression {
-            return instanceCall
-        }
-        
-        _ = try consume()
-        
-        return nil
+        return IntLiteralExpression(value: Int(i.value)!, grouped: false)
     }
     
-    // RValue meaning anything that can legally be on the right hand side of an assignment.
-    // NOTE - Forget about C++ lvalue/rvalue here (maybe there's a better name for this).
-    func parseRValue() throws -> GroupableExpression {
-        let expr = try expectAny(of: [.Operator, .Identifier, .TypeIdentifier, .Int, .Real]) // TODO - bools, strings etc
+    func parseRealLiteral() throws -> RealLiteralExpression {
+        let r = try expect(tokenType: .Real)
         
-        switch expr.type {
-            case TokenType.Operator:
-                rewind(tokens: [expr])
-                return try parseUnary()
-            
-            case TokenType.Identifier:
-                return IdentifierExpression(value: expr.value, grouped: false)
-                // TODO - Instance calls & instance property access
-//                guard let call = try checkIfInstanceCall(token: expr) else {
-//                    return IdentifierExpression(value: expr.value, grouped: false)
-//                }
-//                
-//                return call
-            case TokenType.Int:
-                return IntLiteralExpression(value: Int(expr.value)!, grouped: false)
-//                guard let call = try checkIfInstanceCall(token: expr) else {
-//                    return IntLiteralExpression(value: Int(expr.value)!, grouped: false)
-//                }
-//                
-//                return call
-            case TokenType.Real:
-                return RealLiteralExpression(value: Double(expr.value)!, grouped: false)
-//                guard let call = try checkIfInstanceCall(token: expr) else {
-//                    return RealLiteralExpression(value: Double(expr.value)!, grouped: false)
-//                }
-//                
-//                return call
-            case TokenType.TypeIdentifier:
-                self.rewind(tokens: [expr])
-                if let staticCall = attempt(parseFunc: self.parseStaticCall) as? StaticCallExpression {
-                    return staticCall
-                } else {
-                    // TODO - Enum member access, e.g. SomeEnum.CaseA
-                    throw OrbitError.unexpectedToken(token: expr)
-                }
-            
-            default: throw OrbitError.unexpectedToken(token: expr)
-        }
+        return RealLiteralExpression(value: Double(r.value)!, grouped: false)
     }
     
     func parseReturn() throws -> ReturnStatement {
@@ -1061,58 +982,57 @@ class Parser : CompilationPhase {
         return AssignmentStatement(name: lhs, value: rhs)
     }
     
-    func parseCallRhs() throws -> (method: IdentifierExpression, args: [ArgType]) {
+    func parseCallRhs() throws -> (method: IdentifierExpression, args: [ArgType], isPropertyAccess: Bool) {
         _ = try expect(tokenType: .Dot)
         let method = try parseIdentifier()
+        
+        let next = try peek()
+        
+        guard next.type == .LParen else {
+            return (method: method, args: [], isPropertyAccess: true)
+        }
+        
         let args = try parseExpressions()
         
-        return (method: method, args: args)
+        return (method: method, args: args, isPropertyAccess: false)
     }
     
-    func parseStaticCall() throws -> StaticCallExpression {
-        let receiver = try parseTypeIdentifier()
+    func parseStaticCall(lhs: Expression? = nil) throws -> Expression {
+        let receiver = try lhs ?? parseTypeIdentifier()
+        
+        guard try self.hasNext() && peek().type == .Dot else { return receiver }
+        
         let rhs = try parseCallRhs()
         
-        return StaticCallExpression(grouped: false, receiver: receiver, methodName: rhs.method, args: rhs.args)
+        let call = StaticCallExpression(grouped: true, receiver: receiver as! TypeIdentifierExpression, methodName: rhs.method, args: rhs.args)
+        
+        guard try self.hasNext() && peek().type == .Dot else { return call }
+        
+        // Int.next(1).foo() is an instance call on the result of the static call
+        // Hence we call parseInstanceCall here rather than recurse into parseStaticCall()
+        return try parseInstanceCall(lhs: call)
     }
     
-    func parseInstanceCall() throws -> InstanceCallExpression {
+    func parseInstanceCall(lhs: Expression? = nil) throws -> Expression {
+        let receiver = try lhs ?? parseExpression()
+        
+        guard try self.hasNext() && peek().type == .Dot else { return receiver }
+        
+        let rhs = try parseCallRhs()
+        
+        let call = InstanceCallExpression(grouped: true, receiver: receiver as! GroupableExpression, methodName: rhs.method, args: rhs.args)
+        
+        guard try self.hasNext() && peek().type == .Dot else { return call }
+        
+        return try parseInstanceCall(lhs: call)
+    }
+    
+    func parsePropertyAccess() throws -> PropertyAccessExpression {
         let receiver = try parseExpression()
-        let rhs = try parseCallRhs()
+        let propertyName = try parseIdentifier()
         
-        return InstanceCallExpression(grouped: false, receiver: receiver, methodName: rhs.method, args: rhs.args)
+        return PropertyAccessExpression(grouped: false, receiver: receiver, propertyName: propertyName)
     }
-//
-//    func parseStatement() throws -> Statement {
-//        let next = try peek()
-//        
-//        switch (next.type, next.value) {
-//            case (TokenType.Keyword, "return"): return try parseReturn()
-//            case (TokenType.TypeIdentifier, _): return try parseStaticCall()
-//            
-//            case (TokenType.Identifier, _):
-//                // Multiple options here, so we'll have to look at another token to be sure
-//                let first = try consume()
-//                let next = try peek()
-//            
-//                switch next.type {
-//                    case TokenType.Assignment:
-//                        rewind(tokens: [first])
-//                        return try parseAssignment()
-//                    
-//                    case TokenType.LParen:
-//                        rewind(tokens: [first])
-//                        return try parseInstanceCall()
-//                    
-//                    default: throw OrbitError.unexpectedToken(token: first)
-//                }
-//            
-//            case (TokenType.Int, _): fallthrough
-//            case (TokenType.Real, _): return try parseInstanceCall() // Calling an instance method on a literal
-//            
-//            default: throw OrbitError.unexpectedToken(token: next)
-//        }
-//    }
     
     func parse(token: Token) throws -> Expression {
         switch token.type {
