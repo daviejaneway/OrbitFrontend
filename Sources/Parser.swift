@@ -877,6 +877,8 @@ public class Parser : CompilationPhase {
             }
         }
         
+        _ = try expect(tokenType: .Shelf)
+        
         if let ret = signature.returnType {
             guard hasReturn else { throw OrbitError(message: "Method \(signature.name.value) must return a value of type \(ret.value)") }
         } else if hasReturn {

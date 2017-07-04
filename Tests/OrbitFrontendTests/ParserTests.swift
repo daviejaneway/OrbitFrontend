@@ -1002,4 +1002,30 @@ class ParserTests: XCTestCase {
         
         XCTAssertEqual(2, result2.body.count)
     }
+    
+    func testParseAPI() {
+        let src =
+        "api Main" +
+            "(Main) main (argc Int8, argv [String]) ()" +
+                "Main.puti32(argc)" +
+                "Main.puti32(argv.size())" +
+            "..." +
+        "..."
+        
+        let parser = Parser()
+        
+        parser.tokens = lex(source: src)
+        
+        do {
+            let result = try parser.execute(input: parser.tokens)
+            
+            XCTAssertEqual(1, result.body.count)
+            XCTAssertTrue(result.body[0] is APIExpression)
+            XCTAssertTrue((result.body[0] as! APIExpression).body[0] is MethodExpression<StaticSignatureExpression>)
+        } catch let ex as OrbitError {
+            print(ex.message)
+        } catch {
+            
+        }
+    }
 }
