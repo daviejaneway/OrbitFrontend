@@ -516,6 +516,10 @@ public class Parser : CompilationPhase {
     
     internal(set) var tokens: [Token] = []
     
+    public init() {
+        
+    }
+    
     func rewind(tokens: [Token]) {
         self.tokens.insert(contentsOf: tokens, at: 0)
     }

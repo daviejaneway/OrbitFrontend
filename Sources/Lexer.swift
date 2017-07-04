@@ -106,7 +106,7 @@ public class Lexer : CompilationPhase {
     
     private(set) var rules: [TokenType]
     
-    init(rules: [TokenType] = TokenType.base) {
+    public init(rules: [TokenType] = TokenType.base) {
         self.rules = rules
     }
     
