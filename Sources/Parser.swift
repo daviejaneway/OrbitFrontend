@@ -148,6 +148,17 @@ struct StringLiteralExpression : ValueExpression, RValueExpression {
     }
 }
 
+struct ListExpression : ValueExpression, RValueExpression {
+    typealias ValueType = [Expression]
+    
+    let value: [Expression]
+    var grouped: Bool = false
+    
+    func dump() -> String {
+        return "[\(value.map { ($0 as! GroupableExpression).dump() }.joined(separator: ","))]"
+    }
+}
+
 protocol ExportableExpression : Expression {}
 
 enum OperatorPrecedence {
@@ -820,13 +831,13 @@ class Parser : CompilationPhase {
         return try Operator.lookup(operatorWithSymbol: op.value, inPosition: position)
     }
     
-    func parseExpressions() throws -> [ArgType] {
-        _ = try expect(tokenType: .LParen)
+    func parseExpressions(openParen: TokenType = .LParen, closeParen: TokenType = .RParen) throws -> [ArgType] {
+        _ = try expect(tokenType: openParen)
         
         do {
             var expressions: [ArgType] = []
             var next = try peek()
-            while next.type != .RParen {
+            while next.type != closeParen {
                 guard next.type != .Comma else {
                     _ = try consume()
                     next = try peek()
@@ -884,6 +895,7 @@ class Parser : CompilationPhase {
                 guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: r) }) else { return r }
                 return call
             
+            case TokenType.LBracket: return try parseListLiteral()
             case TokenType.LParen: return try parseParens()
             case TokenType.Operator: return try parseUnary()
             
@@ -965,6 +977,16 @@ class Parser : CompilationPhase {
         let r = try expect(tokenType: .Real)
         
         return RealLiteralExpression(value: Double(r.value)!, grouped: false)
+    }
+    
+//    func parseBoolLiteral() throws -> BoolLiteralExpression {
+//        let b = try expect(tokenType: .Bo)
+//    }
+
+    func parseListLiteral() throws -> ListExpression {
+        let elements = try parseExpressions(openParen: .LBracket, closeParen: .RBracket)
+        
+        return ListExpression(value: elements, grouped: true)
     }
     
     func parseReturn() throws -> ReturnStatement {
