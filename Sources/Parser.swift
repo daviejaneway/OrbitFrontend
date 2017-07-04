@@ -51,51 +51,51 @@ extension OrbitError {
     }
 }
 
-protocol Expression {}
-protocol TopLevelExpression : Expression {}
-protocol Statement : Expression {}
+public protocol Expression {}
+public protocol TopLevelExpression : Expression {}
+public protocol Statement : Expression {}
 
-struct RootExpression : Expression {
+public struct RootExpression : Expression {
     var body: [TopLevelExpression] = []
 }
 
-protocol NamedExpression : Expression {
+public protocol NamedExpression : Expression {
     var name: IdentifierExpression { get }
 }
 
-protocol TypedExpression : Expression {}
+public protocol TypedExpression : Expression {}
 
-protocol GroupableExpression : Expression {
+public protocol GroupableExpression : Expression {
     var grouped: Bool { get set }
     
     func dump() -> String
 }
 
-protocol ValueExpression : GroupableExpression {
+public protocol ValueExpression : GroupableExpression {
     associatedtype ValueType
     
     var value: ValueType { get }
 }
 
-protocol LValueExpression {}
-protocol RValueExpression {}
+public protocol LValueExpression {}
+public protocol RValueExpression {}
 
-struct IdentifierExpression : LValueExpression, RValueExpression, ValueExpression {
-    typealias ValueType = String
+public struct IdentifierExpression : LValueExpression, RValueExpression, ValueExpression {
+    public typealias ValueType = String
     
-    let value: String
-    var grouped: Bool
+    public let value: String
+    public var grouped: Bool
     
-    func dump() -> String {
+    public func dump() -> String {
         return self.grouped ? "(\(self.value))" : self.value
     }
 }
 
-struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpression {
-    typealias ValueType = String
+public struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpression {
+    public typealias ValueType = String
     
-    let value: String
-    var grouped: Bool
+    public let value: String
+    public var grouped: Bool
     var isList: Bool = false
     
     init(value: String, grouped: Bool = false, isList: Bool = false) {
@@ -104,131 +104,131 @@ struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpres
         self.isList = isList
     }
     
-    func dump() -> String {
+    public func dump() -> String {
         return self.grouped ? "(\(self.value))" : self.value
     }
 }
 
-struct PairExpression : NamedExpression, TypedExpression {
-    let name: IdentifierExpression
+public struct PairExpression : NamedExpression, TypedExpression {
+    public let name: IdentifierExpression
     let type: TypeIdentifierExpression
 }
 
-struct IntLiteralExpression : ValueExpression, RValueExpression {
-    typealias ValueType = Int
+public struct IntLiteralExpression : ValueExpression, RValueExpression {
+    public typealias ValueType = Int
     
-    let value: Int
-    var grouped: Bool
+    public let value: Int
+    public var grouped: Bool
     
-    func dump() -> String {
+    public func dump() -> String {
         return self.grouped ? "(\(self.value))" : "\(self.value)"
     }
 }
 
-struct RealLiteralExpression : ValueExpression, RValueExpression {
-    typealias ValueType = Double
+public struct RealLiteralExpression : ValueExpression, RValueExpression {
+    public typealias ValueType = Double
     
-    let value: Double
-    var grouped: Bool
+    public let value: Double
+    public var grouped: Bool
     
-    func dump() -> String {
+    public func dump() -> String {
         return self.grouped ? "(\(self.value))" : "\(self.value)"
     }
 }
 
-struct BoolLiteralExpression : ValueExpression, RValueExpression {
-    typealias ValueType = Bool
+public struct BoolLiteralExpression : ValueExpression, RValueExpression {
+    public typealias ValueType = Bool
     
-    let value: Bool
-    var grouped: Bool
+    public let value: Bool
+    public var grouped: Bool
     
-    func dump() -> String {
+    public func dump() -> String {
         return self.grouped ? "(\(self.value))" : "\(self.value)"
     }
 }
 
-struct StringLiteralExpression : ValueExpression, RValueExpression {
-    typealias ValueType = String
+public struct StringLiteralExpression : ValueExpression, RValueExpression {
+    public typealias ValueType = String
     
-    let value: String
-    var grouped: Bool
+    public let value: String
+    public var grouped: Bool
     
-    func dump() -> String {
+    public func dump() -> String {
         return self.grouped ? "(\(self.value))" : "\(self.value)"
     }
 }
 
-struct ListExpression : ValueExpression, RValueExpression {
-    typealias ValueType = [Expression]
+public struct ListExpression : ValueExpression, RValueExpression {
+    public typealias ValueType = [Expression]
     
-    let value: [Expression]
-    var grouped: Bool = false
+    public let value: [Expression]
+    public var grouped: Bool = false
     
-    func dump() -> String {
+    public func dump() -> String {
         return "[\(value.map { ($0 as! GroupableExpression).dump() }.joined(separator: ","))]"
     }
 }
 
-struct MapEntryExpression : ValueExpression {
-    typealias ValueType = (key: Expression, value: Expression)
+public struct MapEntryExpression : ValueExpression {
+    public typealias ValueType = (key: Expression, value: Expression)
     
-    let value: ValueType
-    var grouped: Bool
+    public let value: ValueType
+    public var grouped: Bool
     
-    func dump() -> String {
+    public func dump() -> String {
         return "(\((value.key as! GroupableExpression).dump()):\((value.value as! GroupableExpression).dump()))"
     }
 }
 
-struct MapExpression : ValueExpression, RValueExpression {
-    typealias ValueType = [MapEntryExpression]
+public struct MapExpression : ValueExpression, RValueExpression {
+    public typealias ValueType = [MapEntryExpression]
     
-    let value: ValueType
-    var grouped: Bool
+    public let value: ValueType
+    public var grouped: Bool
     
-    func dump() -> String {
+    public func dump() -> String {
         return "[\(value.map { $0.dump() }.joined(separator: ","))]"
     }
 }
 
-struct TupleLiteralExpression : ValueExpression, RValueExpression {
-    typealias ValueType = [Expression]
+public struct TupleLiteralExpression : ValueExpression, RValueExpression {
+    public typealias ValueType = [Expression]
     
-    let value: ValueType
-    var grouped = false
+    public let value: ValueType
+    public var grouped = false
     
-    func dump() -> String {
+    public func dump() -> String {
         return "(\(value.map { ($0 as! GroupableExpression).dump() }.joined(separator: ",")))"
     }
 }
 
 // We're only handling the most basic type constraints here. e.g. foo<T> (x T).
 // This will be expanded later to be MUCH richer.
-struct GenericExpression : ValueExpression {
-    typealias ValueType = TypeIdentifierExpression
+public struct GenericExpression : ValueExpression {
+    public typealias ValueType = TypeIdentifierExpression
     
-    let value: ValueType
-    var grouped: Bool = false
+    public let value: ValueType
+    public var grouped: Bool = false
     
-    func dump() -> String {
+    public func dump() -> String {
         return "<\(value.dump())>"
     }
 }
 
-struct ConstraintList : ValueExpression {
-    typealias ValueType = [GenericExpression]
+public struct ConstraintList : ValueExpression {
+    public typealias ValueType = [GenericExpression]
     
-    let value: ValueType
-    var grouped: Bool = false
+    public let value: ValueType
+    public var grouped: Bool = false
     
-    func dump() -> String {
+    public func dump() -> String {
         return "<\(value.map { $0.dump() }.joined(separator: ","))>"
     }
 }
 
-protocol ExportableExpression : Expression {}
+public protocol ExportableExpression : Expression {}
 
-enum OperatorPrecedence {
+public enum OperatorPrecedence {
     case Equal
     case Greater
     case Lesser
@@ -242,7 +242,7 @@ enum OperatorPrecedence {
     }
 }
 
-enum OperatorPosition {
+public enum OperatorPosition {
     case Prefix
     case Infix
     case Postfix
@@ -254,7 +254,7 @@ enum OperatorPosition {
     relationship for a given operator is not defined, it is assumed to be
     of equal precedence.
  */
-class Operator : Hashable, Equatable {
+public class Operator : Hashable, Equatable {
     // This var will be incremented automatically every time a new Operator is init'd
     private static var _operatorId: Int = 0
     
@@ -278,7 +278,7 @@ class Operator : Hashable, Equatable {
         Negation, Not
     ]
     
-    let hashValue: Int
+    public let hashValue: Int
 
     let symbol: String
     let position: OperatorPosition
@@ -318,7 +318,7 @@ class Operator : Hashable, Equatable {
         return op
     }
     
-    static func ==(lhs: Operator, rhs: Operator) -> Bool {
+    public static func ==(lhs: Operator, rhs: Operator) -> Bool {
         return lhs.hashValue == rhs.hashValue ||
             (lhs.symbol == rhs.symbol && lhs.position == rhs.position)
     }
@@ -375,17 +375,17 @@ class Operator : Hashable, Equatable {
     }
 }
 
-struct TypeDefExpression : ExportableExpression {
+public struct TypeDefExpression : ExportableExpression {
     let name: TypeIdentifierExpression
     let properties: [PairExpression]
     // TODO - Trait conformance
 }
 
-protocol YieldingExpression : Expression {
+public protocol YieldingExpression : Expression {
     var returnType: TypeIdentifierExpression? { get }
 }
 
-protocol SignatureExpression : Expression, YieldingExpression, NamedExpression {
+public protocol SignatureExpression : Expression, YieldingExpression, NamedExpression {
     associatedtype Receiver: TypedExpression
     
     var name: IdentifierExpression { get }
@@ -394,108 +394,108 @@ protocol SignatureExpression : Expression, YieldingExpression, NamedExpression {
     var genericConstraints: ConstraintList? { get }
 }
 
-struct StaticSignatureExpression : SignatureExpression {
-    typealias Receiver = TypeIdentifierExpression
+public struct StaticSignatureExpression : SignatureExpression {
+    public typealias Receiver = TypeIdentifierExpression
     
-    let name: IdentifierExpression
-    let receiverType: TypeIdentifierExpression
-    let parameters: [PairExpression]
-    let returnType: TypeIdentifierExpression?
-    let genericConstraints: ConstraintList?
+    public let name: IdentifierExpression
+    public let receiverType: TypeIdentifierExpression
+    public let parameters: [PairExpression]
+    public let returnType: TypeIdentifierExpression?
+    public let genericConstraints: ConstraintList?
 }
 
-struct InstanceSignatureExpression : SignatureExpression {
-    typealias Receiver = PairExpression
+public struct InstanceSignatureExpression : SignatureExpression {
+    public typealias Receiver = PairExpression
     
-    let name: IdentifierExpression
-    let receiverType: PairExpression
-    let parameters: [PairExpression]
-    let returnType: TypeIdentifierExpression?
-    let genericConstraints: ConstraintList?
+    public let name: IdentifierExpression
+    public let receiverType: PairExpression
+    public let parameters: [PairExpression]
+    public let returnType: TypeIdentifierExpression?
+    public let genericConstraints: ConstraintList?
 }
 
-struct MethodExpression<S: SignatureExpression> : ExportableExpression {
+public struct MethodExpression<S: SignatureExpression> : ExportableExpression {
     let signature: S
     let body: [Statement]
 }
 
-struct APIExpression : TopLevelExpression {
+public struct APIExpression : TopLevelExpression {
     let name: TypeIdentifierExpression
     let body: [Expression]
 }
 
-struct ReturnStatement : Statement {
+public struct ReturnStatement : Statement {
     let value: Expression
 }
 
-struct AssignmentStatement : Statement {
+public struct AssignmentStatement : Statement {
     let name: IdentifierExpression
     let value: Expression
 }
 
-typealias ArgType = GroupableExpression & RValueExpression
+public typealias ArgType = GroupableExpression & RValueExpression
 
-protocol CallExpression : Statement, RValueExpression {
+public protocol CallExpression : Statement, RValueExpression {
     var methodName: IdentifierExpression { get }
     var args: [ArgType] { get }
 }
 
-struct StaticCallExpression : CallExpression, GroupableExpression {
-    var grouped: Bool = false
+public struct StaticCallExpression : CallExpression, GroupableExpression {
+    public var grouped: Bool = false
     
     let receiver: TypeIdentifierExpression
-    let methodName: IdentifierExpression
-    let args: [ArgType]
+    public let methodName: IdentifierExpression
+    public let args: [ArgType]
     
-    func dump() -> String {
+    public func dump() -> String {
         return "\(receiver.dump()).\(methodName.dump())(\(args.map { $0.dump() }.joined(separator: ",")))"
     }
 }
 
-struct InstanceCallExpression : CallExpression, GroupableExpression {
-    var grouped: Bool = false
+public struct InstanceCallExpression : CallExpression, GroupableExpression {
+    public var grouped: Bool = false
     
     let receiver: GroupableExpression
-    let methodName: IdentifierExpression
-    let args: [ArgType]
+    public let methodName: IdentifierExpression
+    public let args: [ArgType]
     
-    func dump() -> String {
+    public func dump() -> String {
         return "\(receiver.dump()).\(methodName.value)(\(args.map { $0.dump() }.joined(separator: ",")))"
     }
 }
 
-struct PropertyAccessExpression : GroupableExpression {
-    var grouped: Bool = false
+public struct PropertyAccessExpression : GroupableExpression {
+    public var grouped: Bool = false
     
     let receiver: Expression
     let propertyName: IdentifierExpression
     
-    func dump() -> String {
+    public func dump() -> String {
         return ""
     }
 }
 
-struct UnaryExpression : ValueExpression, RValueExpression {
-    let value: GroupableExpression
+public struct UnaryExpression : ValueExpression, RValueExpression {
+    public let value: GroupableExpression
     let op: Operator
-    var grouped: Bool
+    public var grouped: Bool
     
-    func dump() -> String {
+    public func dump() -> String {
         return self.grouped ? "(\(self.op.symbol)\(self.value.dump()))" : "\(self.op.symbol)\(self.value.dump())"
     }
 }
 
-struct BinaryExpression : ValueExpression, RValueExpression {
-    typealias ValueType = (left: GroupableExpression, right: GroupableExpression)
+public struct BinaryExpression : ValueExpression, RValueExpression {
+    public typealias ValueType = (left: GroupableExpression, right: GroupableExpression)
     
-    var value: (left: GroupableExpression, right: GroupableExpression)
+    public var value: (left: GroupableExpression, right: GroupableExpression)
     
     let left: GroupableExpression
     var right: GroupableExpression
     let op: Operator
     
     /// if a binary expression is grouped, all operator precedence is ignored
-    var grouped = false
+    public var grouped = false
     
     init(left: GroupableExpression, right: GroupableExpression, op: Operator, grouped: Bool = false) {
         self.left = left
@@ -505,14 +505,14 @@ struct BinaryExpression : ValueExpression, RValueExpression {
         self.value = (left: left, right: right)
     }
     
-    func dump() -> String {
+    public func dump() -> String {
         return self.grouped ? "(\(self.left.dump()) \(self.op.symbol) \(self.right.dump()))" : "\(self.left.dump()) \(self.op.symbol) \(self.right.dump())"
     }
 }
 
-class Parser : CompilationPhase {
-    typealias InputType = [Token]
-    typealias OutputType = RootExpression
+public class Parser : CompilationPhase {
+    public typealias InputType = [Token]
+    public typealias OutputType = RootExpression
     
     internal(set) var tokens: [Token] = []
     
@@ -1271,7 +1271,7 @@ class Parser : CompilationPhase {
         }
     }
     
-    func execute(input: Array<Token>) throws -> RootExpression {
+    public func execute(input: Array<Token>) throws -> RootExpression {
         guard input.count > 0 else { throw OrbitError.nothingToParse() }
         
         self.tokens = input

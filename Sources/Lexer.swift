@@ -3,7 +3,7 @@ import OrbitCompilerUtils
 
 typealias SourcePosition = (line: Int, character: Int)
 
-extension OrbitError {
+public extension OrbitError {
     static func unexpectedLexicalElement(lexer: Lexer, str: String) -> OrbitError {
         return OrbitError(message: "Found unexpected input at source position: \(lexer.currentPosition)\n'\(str)'")
     }
@@ -17,7 +17,7 @@ extension OrbitError {
     }
 }
 
-struct TokenType : Equatable {
+public struct TokenType : Equatable {
     let name: String
     let pattern: String
     
@@ -49,7 +49,7 @@ struct TokenType : Equatable {
     
     static let Whitespace = TokenType(name: "Whitespace", pattern: "[ \t\n\r]")
     
-    static func ==(lhs: TokenType, rhs: TokenType) -> Bool {
+    public static func ==(lhs: TokenType, rhs: TokenType) -> Bool {
         return lhs.name == rhs.name
     }
     
@@ -65,7 +65,7 @@ struct TokenType : Equatable {
     ]
 }
 
-struct Token {
+public struct Token {
 	let type: TokenType
 	let value: String
 	//let position: SourcePosition
@@ -97,9 +97,9 @@ public extension String {
     }
 }
 
-class Lexer : CompilationPhase {
-    typealias InputType = String
-    typealias OutputType = [Token]
+public class Lexer : CompilationPhase {
+    public typealias InputType = String
+    public typealias OutputType = [Token]
     
 	private (set) var currentPosition: SourcePosition = (line: 0, character: 0)
 	private var idx = 0
@@ -124,7 +124,7 @@ class Lexer : CompilationPhase {
         try insert(rule: rule, atIndex: UInt(idx))
     }
     
-    func execute(input: String) throws -> [Token] {
+    public func execute(input: String) throws -> [Token] {
         var tokens = [Token]()
         var content = input
         
