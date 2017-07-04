@@ -171,9 +171,16 @@ class ParserTests: XCTestCase {
         
         parser.tokens = tokens
         
-        let result = try! parser.parseTypeIdentifier()
+        var result = try! parser.parseTypeIdentifier()
         
         XCTAssertEqual("Foo", result.value)
+        
+        parser.tokens = lex(source: "[Bar]")
+        
+        result = try! parser.parseTypeIdentifier()
+        
+        XCTAssertTrue(result.isList)
+        XCTAssertEqual("Bar", result.value)
     }
     
     func testParseSimpleTypeDef() {
@@ -214,10 +221,18 @@ class ParserTests: XCTestCase {
         
         parser.tokens = tokens
         
-        let result = try! parser.parsePair()
+        var result = try! parser.parsePair()
         
         XCTAssertEqual("str", result.name.value)
         XCTAssertEqual("String", result.type.value)
+        
+        parser.tokens = lex(source: "xs [Int]")
+        
+        result = try! parser.parsePair()
+        
+        XCTAssertEqual("xs", result.name.value)
+        XCTAssertTrue(result.type.isList)
+        XCTAssertEqual("Int", result.type.value)
     }
     
     func testParsePairs() {
@@ -427,7 +442,7 @@ class ParserTests: XCTestCase {
         XCTAssertEqual("Int", id2.value)
         XCTAssertEqual("Real", id3.value)
         
-        parser.tokens = lex(source: "(Int, Real, String)")
+        parser.tokens = lex(source: "(Int, Real, [String])")
         
         result = try! parser.parseTypeIdentifierList()
         
@@ -440,6 +455,7 @@ class ParserTests: XCTestCase {
         XCTAssertEqual("Int", id4.value)
         XCTAssertEqual("Real", id5.value)
         XCTAssertEqual("String", id6.value)
+        XCTAssertTrue(id6.isList)
     }
     
     func testOperatorPrecedenceOpposite() {
@@ -540,7 +556,7 @@ class ParserTests: XCTestCase {
         XCTAssertEqual("String", id6.type.value)
     }
     
-    func testparseExpression() {
+    func testParseExpression() {
         let parser = Parser()
         
         parser.tokens = lex(source: "-2")
@@ -717,6 +733,33 @@ class ParserTests: XCTestCase {
         XCTAssertEqual(2, result.value.count)
         XCTAssertTrue(result.value[0] is BinaryExpression)
         XCTAssertTrue(result.value[1] is ListExpression)
+        
+        parser.tokens = lex(source: "[]")
+        
+        result = try! parser.parseListLiteral()
+        
+        XCTAssertEqual(0, result.value.count)
+    }
+    
+    func testParseMapLiteral() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "[a: 1, b: 2]")
+        
+        var result = try! parser.parseMapLiteral()
+        
+        XCTAssertEqual(2, result.value.count)
+        XCTAssertEqual("a", (result.value[0].value.key as! IdentifierExpression).value)
+        XCTAssertEqual(1, (result.value[0].value.value as! IntLiteralExpression).value)
+        XCTAssertEqual("b", (result.value[1].value.key as! IdentifierExpression).value)
+        XCTAssertEqual(2, (result.value[1].value.value as! IntLiteralExpression).value)
+        
+        parser.tokens = lex(source: "[-5: 7 * 2, b: [a: 1]]")
+        
+        result = try! parser.parseMapLiteral()
+        
+        XCTAssertEqual(2, result.value.count)
+        XCTAssertTrue(result.value[1].value.value is MapExpression)
     }
     
     func testParseReturn() {
@@ -840,5 +883,123 @@ class ParserTests: XCTestCase {
         parser.tokens = lex(source: "a.b(1).c().d(2, 3).e().f(a, b)")
         result = try! parser.parseExpression() as! InstanceCallExpression
         XCTAssertEqual("a.b(1).c().d(2,3).e().f(a,b)", result.dump())
+        
+        parser.tokens = lex(source: "[1, 2, 3].insert(4)")
+        result = try! parser.parseExpression() as! InstanceCallExpression
+        XCTAssertEqual("[1,2,3].insert(4)", result.dump())
+        
+        parser.tokens = lex(source: "[a: 1, b: 2].insert(c, 2)")
+        result = try! parser.parseExpression() as! InstanceCallExpression
+        XCTAssertEqual("[(a:1),(b:2)].insert(c,2)", result.dump())
+        
+        parser.tokens = lex(source: "a.insert([1, 2, 3])")
+        result = try! parser.parseExpression() as! InstanceCallExpression
+        XCTAssertEqual("a.insert([1,2,3])", result.dump())
+        
+        parser.tokens = lex(source: "a.insert([abc: 123, def: 456])")
+        result = try! parser.parseExpression() as! InstanceCallExpression
+        XCTAssertEqual("a.insert([(abc:123),(def:456)])", result.dump())
+    }
+    
+    func testParseGenerics() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "<>")
+        
+        XCTAssertThrowsError(try parser.parseTypeConstraints())
+        
+        parser.tokens = lex(source: "<T>")
+        
+        var result = try! parser.parseTypeConstraints()
+        
+        XCTAssertEqual(1, result.value.count)
+        
+        parser.tokens = lex(source: "<T, U, V>")
+        
+        result = try! parser.parseTypeConstraints()
+        
+        XCTAssertEqual(3, result.value.count)
+    }
+    
+    func testParseStaticSignature() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "(Int) power<T> (x T, y T) (T)")
+        
+        var result = try! parser.parseStaticSignature()
+        
+        XCTAssertEqual("Int", result.receiverType.value)
+        XCTAssertEqual("power", result.name.value)
+        XCTAssertEqual(1, result.genericConstraints!.value.count)
+        XCTAssertEqual(2, result.parameters.count)
+        XCTAssertEqual("T", result.returnType!.value)
+        
+        parser.tokens = lex(source: "(Int) power (x Int, y Int) (Int)")
+        
+        result = try! parser.parseStaticSignature()
+        
+        XCTAssertEqual("Int", result.receiverType.value)
+        XCTAssertEqual("power", result.name.value)
+        XCTAssertNil(result.genericConstraints)
+        XCTAssertEqual(2, result.parameters.count)
+        XCTAssertEqual("Int", result.returnType!.value)
+        
+        parser.tokens = lex(source: "(Int) power (x Int, y Int) ()")
+        
+        result = try! parser.parseStaticSignature()
+        
+        XCTAssertNil(result.returnType)
+    }
+    
+    func testParseInstanceSignature() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "(self Int) power<T> (x T, y T) (T)")
+        
+        var result = try! parser.parseInstanceSignature()
+        
+        XCTAssertEqual("Int", result.receiverType.type.value)
+        XCTAssertEqual("power", result.name.value)
+        XCTAssertEqual(1, result.genericConstraints!.value.count)
+        XCTAssertEqual(2, result.parameters.count)
+        XCTAssertEqual("T", result.returnType!.value)
+        
+        parser.tokens = lex(source: "(self Int) power (x Int, y Int) (Int)")
+        
+        result = try! parser.parseInstanceSignature()
+        
+        XCTAssertEqual("Int", result.receiverType.type.value)
+        XCTAssertEqual("power", result.name.value)
+        XCTAssertNil(result.genericConstraints)
+        XCTAssertEqual(2, result.parameters.count)
+        XCTAssertEqual("Int", result.returnType!.value)
+        
+        parser.tokens = lex(source: "(self Int) power (x Int, y Int) ()")
+        
+        result = try! parser.parseInstanceSignature()
+        
+        XCTAssertNil(result.returnType)
+    }
+    
+    func testParseMethod() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "(self Int) power<T> (x T, y T) (T)" +
+            "   z = x ** y" +
+            "   return z" +
+            "...")
+        
+        let result = try! parser.parseMethod() as! MethodExpression<InstanceSignatureExpression>
+        
+        XCTAssertEqual(2, result.body.count)
+        
+        parser.tokens = lex(source: "(Int) power<T> (x T, y T) (T)" +
+            "   z = x ** y" +
+            "   return z" +
+            "...")
+        
+        let result2 = try! parser.parseMethod() as! MethodExpression<StaticSignatureExpression>
+        
+        XCTAssertEqual(2, result2.body.count)
     }
 }

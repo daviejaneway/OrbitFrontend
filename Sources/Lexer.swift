@@ -41,6 +41,9 @@ struct TokenType : Equatable {
     static let LBrace = TokenType(name: "LBrace", pattern: "\\{")
     static let RBrace = TokenType(name: "RBrace", pattern: "\\}")
     
+    static let LAngle = TokenType(name: "LAngle", pattern: "\\<")
+    static let RAngle = TokenType(name: "RAngle", pattern: "\\>")
+    
     static let Assignment = TokenType(name: "Assignment", pattern: "\\=")
     static let Operator = TokenType(name: "Operator", pattern: "[\\+\\-\\*\\/\\^\\!\\?\\%\\&\\<\\>\\|]+")
     
@@ -53,8 +56,12 @@ struct TokenType : Equatable {
     static let base = [
         Whitespace, Real, Int, Keyword,
         Identifier, TypeIdentifier,
-        Colon, Comma, Shelf, Dot, LParen, RParen,
-        LBracket, RBracket, LBrace, RBrace, Assignment, Operator
+        Colon, Comma, Shelf, Dot,
+        LParen, RParen,
+        LAngle, RAngle,
+        LBracket, RBracket,
+        LBrace, RBrace,
+        Assignment, Operator
     ]
 }
 

@@ -59,7 +59,10 @@ struct RootExpression : Expression {
     var body: [TopLevelExpression] = []
 }
 
-protocol NamedExpression : Expression {}
+protocol NamedExpression : Expression {
+    var name: IdentifierExpression { get }
+}
+
 protocol TypedExpression : Expression {}
 
 protocol GroupableExpression : Expression {
@@ -77,7 +80,7 @@ protocol ValueExpression : GroupableExpression {
 protocol LValueExpression {}
 protocol RValueExpression {}
 
-struct IdentifierExpression : NamedExpression, LValueExpression, RValueExpression, ValueExpression {
+struct IdentifierExpression : LValueExpression, RValueExpression, ValueExpression {
     typealias ValueType = String
     
     let value: String
@@ -88,11 +91,18 @@ struct IdentifierExpression : NamedExpression, LValueExpression, RValueExpressio
     }
 }
 
-struct TypeIdentifierExpression : NamedExpression, TypedExpression, ValueExpression, RValueExpression {
+struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpression {
     typealias ValueType = String
     
     let value: String
     var grouped: Bool
+    var isList: Bool = false
+    
+    init(value: String, grouped: Bool = false, isList: Bool = false) {
+        self.value = value
+        self.grouped = grouped
+        self.isList = isList
+    }
     
     func dump() -> String {
         return self.grouped ? "(\(self.value))" : self.value
@@ -156,6 +166,63 @@ struct ListExpression : ValueExpression, RValueExpression {
     
     func dump() -> String {
         return "[\(value.map { ($0 as! GroupableExpression).dump() }.joined(separator: ","))]"
+    }
+}
+
+struct MapEntryExpression : ValueExpression {
+    typealias ValueType = (key: Expression, value: Expression)
+    
+    let value: ValueType
+    var grouped: Bool
+    
+    func dump() -> String {
+        return "(\((value.key as! GroupableExpression).dump()):\((value.value as! GroupableExpression).dump()))"
+    }
+}
+
+struct MapExpression : ValueExpression, RValueExpression {
+    typealias ValueType = [MapEntryExpression]
+    
+    let value: ValueType
+    var grouped: Bool
+    
+    func dump() -> String {
+        return "[\(value.map { $0.dump() }.joined(separator: ","))]"
+    }
+}
+
+struct TupleLiteralExpression : ValueExpression, RValueExpression {
+    typealias ValueType = [Expression]
+    
+    let value: ValueType
+    var grouped = false
+    
+    func dump() -> String {
+        return "(\(value.map { ($0 as! GroupableExpression).dump() }.joined(separator: ",")))"
+    }
+}
+
+// We're only handling the most basic type constraints here. e.g. foo<T> (x T).
+// This will be expanded later to be MUCH richer.
+struct GenericExpression : ValueExpression {
+    typealias ValueType = TypeIdentifierExpression
+    
+    let value: ValueType
+    var grouped: Bool = false
+    
+    func dump() -> String {
+        return "<\(value.dump())>"
+    }
+}
+
+struct ConstraintList : ValueExpression {
+    typealias ValueType = [GenericExpression]
+    
+    let value: ValueType
+    var grouped: Bool = false
+    
+    func dump() -> String {
+        return "<\(value.map { $0.dump() }.joined(separator: ","))>"
     }
 }
 
@@ -314,13 +381,17 @@ struct TypeDefExpression : ExportableExpression {
     // TODO - Trait conformance
 }
 
-protocol SignatureExpression : Expression {
+protocol YieldingExpression : Expression {
+    var returnType: TypeIdentifierExpression? { get }
+}
+
+protocol SignatureExpression : Expression, YieldingExpression, NamedExpression {
     associatedtype Receiver: TypedExpression
     
     var name: IdentifierExpression { get }
     var receiverType: Receiver { get }
     var parameters: [PairExpression] { get }
-    var returnType: TypeIdentifierExpression { get }
+    var genericConstraints: ConstraintList? { get }
 }
 
 struct StaticSignatureExpression : SignatureExpression {
@@ -329,7 +400,8 @@ struct StaticSignatureExpression : SignatureExpression {
     let name: IdentifierExpression
     let receiverType: TypeIdentifierExpression
     let parameters: [PairExpression]
-    let returnType: TypeIdentifierExpression
+    let returnType: TypeIdentifierExpression?
+    let genericConstraints: ConstraintList?
 }
 
 struct InstanceSignatureExpression : SignatureExpression {
@@ -338,7 +410,8 @@ struct InstanceSignatureExpression : SignatureExpression {
     let name: IdentifierExpression
     let receiverType: PairExpression
     let parameters: [PairExpression]
-    let returnType: TypeIdentifierExpression
+    let returnType: TypeIdentifierExpression?
+    let genericConstraints: ConstraintList?
 }
 
 struct MethodExpression<S: SignatureExpression> : ExportableExpression {
@@ -551,9 +624,19 @@ class Parser : CompilationPhase {
     }
     
     func parseTypeIdentifier() throws -> TypeIdentifierExpression {
-        let token = try expect(tokenType: .TypeIdentifier)
+        let next = try peek()
         
-        return TypeIdentifierExpression(value: token.value, grouped: false)
+        guard next.type == .LBracket else {
+            let token = try expect(tokenType: .TypeIdentifier)
+            
+            return TypeIdentifierExpression(value: token.value)
+        }
+        
+        _ = try expect(tokenType: .LBracket)
+        let tid = try expect(tokenType: .TypeIdentifier)
+        _ = try expect(tokenType: .RBracket)
+        
+        return TypeIdentifierExpression(value: tid.value, isList: true)
     }
     
     func parseTypeIdentifiers() throws -> [TypeIdentifierExpression] {
@@ -696,13 +779,18 @@ class Parser : CompilationPhase {
         guard receiver.count == 1 else { throw OrbitError.multipleReceivers() }
         
         let name = try parseIdentifier()
+        let gen = self.attempt(parseFunc: self.parseTypeConstraints) as? ConstraintList
         let args = try parsePairList()
         let ret = try parseTypeIdentifierList()
+        
+        guard ret.count > 0 else {
+            return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen)
+        }
         
         // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
         guard ret.count == 1 else { throw OrbitError.multipleReturns() }
         
-        return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0])
+        return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
     }
     
     func parseInstanceSignature() throws -> InstanceSignatureExpression {
@@ -711,12 +799,18 @@ class Parser : CompilationPhase {
         guard receiver.count == 1 else { throw OrbitError.multipleReceivers() }
         
         let name = try parseIdentifier()
+        let gen = self.attempt(parseFunc: self.parseTypeConstraints) as? ConstraintList
         let args = try parsePairList()
         let ret = try parseTypeIdentifierList()
         
+        guard ret.count > 0 else {
+            return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen)
+        }
+        
+        // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
         guard ret.count == 1 else { throw OrbitError.multipleReturns() }
         
-        return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0])
+        return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
     }
     
     func parseSignature() throws -> Expression {
@@ -738,42 +832,64 @@ class Parser : CompilationPhase {
         throw OrbitError.unexpectedToken(token: next)
     }
     
-//    func parseMethod() throws -> ExportableExpression {
-//        let signature = try parseSignature()
-//        
-//        var next = try peek()
-//        
-//        guard next.type != .Shelf else {
-//            _ = try consume()
-//            
-//            if let staticSignature = signature as? StaticSignatureExpression {
-//                return MethodExpression(signature: staticSignature, body: [])
-//            }
-//            
-//            return MethodExpression(signature: signature as! InstanceSignatureExpression, body: [])
-//        }
-//        
-//        var body = [Statement]()
-//        
-//        while next.type != .Shelf {
-//            let expr = try parseStatement()
-//            
-//            body.append(expr)
-//            
-//            next = try consume()
-//        }
-//        
-//        guard let staticSignature = signature as? StaticSignatureExpression else {
-//            return MethodExpression(signature: signature as! InstanceSignatureExpression, body: body)
-//        }
-//        
-//        return MethodExpression(signature: staticSignature, body: body)
-//    }
+    func parseMethod() throws -> ExportableExpression {
+        let signature = try parseSignature() as! YieldingExpression & NamedExpression
+        
+        var next = try peek()
+        
+        guard next.type != .Shelf else {
+            _ = try consume()
+            
+            if let staticSignature = signature as? StaticSignatureExpression {
+                return MethodExpression(signature: staticSignature, body: [])
+            }
+            
+            return MethodExpression(signature: signature as! InstanceSignatureExpression, body: [])
+        }
+        
+        var body = [Statement]()
+        var hasReturn = false
+        
+        if next.type == .Keyword && next.value == "return" {
+            let ret = try parseReturn()
+            
+            body.append(ret)
+            hasReturn = true
+        } else {
+            while next.type != .Shelf {
+                let expr = try parseStatement()
+                
+                body.append(expr)
+                
+                next = try peek()
+                
+                if next.type == .Keyword && next.value == "return" {
+                    let ret = try parseReturn()
+                    
+                    body.append(ret)
+                    hasReturn = true
+                    break
+                }
+            }
+        }
+        
+        if let ret = signature.returnType {
+            guard hasReturn else { throw OrbitError(message: "Method \(signature.name.value) must return a value of type \(ret.value)") }
+        } else if hasReturn {
+            throw OrbitError(message: "Superfluous return statement for method \(signature.name.value)")
+        }
+        
+        guard let staticSignature = signature as? StaticSignatureExpression else {
+            return MethodExpression(signature: signature as! InstanceSignatureExpression, body: body)
+        }
+        
+        return MethodExpression(signature: staticSignature, body: body)
+    }
     
     func parseExportable(token: Token) throws -> ExportableExpression {
         switch (token.type, token.value) {
             case (TokenType.Keyword, "type"): return try parseTypeDef()
-            //case (TokenType.LParen, _): return try parseMethod()
+            case (TokenType.LParen, _): return try parseMethod()
             
             default: throw OrbitError.unexpectedToken(token: token)
         }
@@ -829,6 +945,20 @@ class Parser : CompilationPhase {
         let op = try expect(tokenType: .Operator)
         
         return try Operator.lookup(operatorWithSymbol: op.value, inPosition: position)
+    }
+    
+    func parseStatement() throws -> Statement {
+        if let assignment = self.attempt(parseFunc: self.parseAssignment) {
+            return assignment as! AssignmentStatement
+        } else if let call = self.attempt(parseFunc: { try self.parseStaticCall() }) {
+            return call as! StaticCallExpression
+        } else if let call = self.attempt(parseFunc: { try self.parseInstanceCall() }) {
+            return call as! InstanceCallExpression
+        }
+        
+        // TODO - We will eventually allow things like defer statements, cases, selects, matches, loops etc
+        
+        throw OrbitError(message: "Method body must consist of zero or more statements, optionally followed by a return statement")
     }
     
     func parseExpressions(openParen: TokenType = .LParen, closeParen: TokenType = .RParen) throws -> [ArgType] {
@@ -895,7 +1025,17 @@ class Parser : CompilationPhase {
                 guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: r) }) else { return r }
                 return call
             
-            case TokenType.LBracket: return try parseListLiteral()
+            case TokenType.LBracket:
+                if let l = self.attempt(parseFunc: self.parseListLiteral) {
+                    guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: l) }) else { return l }
+                    return call
+                } else if let m = self.attempt(parseFunc: self.parseMapLiteral) {
+                    guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: m) }) else { return m }
+                    return call
+                } else {
+                    throw OrbitError.unexpectedToken(token: next)
+                }
+            
             case TokenType.LParen: return try parseParens()
             case TokenType.Operator: return try parseUnary()
             
@@ -926,7 +1066,7 @@ class Parser : CompilationPhase {
             
             let next = try peek()
             
-            if next.type == .RParen {
+            if next.type != .Operator {
                 return BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true)
             }
             
@@ -987,6 +1127,37 @@ class Parser : CompilationPhase {
         let elements = try parseExpressions(openParen: .LBracket, closeParen: .RBracket)
         
         return ListExpression(value: elements, grouped: true)
+    }
+    
+    func parseMapEntry() throws -> MapEntryExpression {
+        let key = try parseExpression()
+        _ = try expect(tokenType: .Colon)
+        let value = try parseExpression()
+        
+        return MapEntryExpression(value: (key: key, value: value), grouped: true)
+    }
+    
+    func parseMapLiteral() throws -> MapExpression {
+        _ = try expect(tokenType: .LBracket)
+        
+        var entries: [MapEntryExpression] = []
+        
+        var next = try peek()
+        while next.type != .RBracket {
+            let entry = try parseMapEntry()
+            
+            entries.append(entry)
+            
+            next = try peek()
+            
+            if next.type == .Comma {
+                _ = try consume()
+            }
+        }
+        
+        _ = try expect(tokenType: .RBracket)
+        
+        return MapExpression(value: entries, grouped: true)
     }
     
     func parseReturn() throws -> ReturnStatement {
@@ -1054,6 +1225,39 @@ class Parser : CompilationPhase {
         let propertyName = try parseIdentifier()
         
         return PropertyAccessExpression(grouped: false, receiver: receiver, propertyName: propertyName)
+    }
+    
+    func parseGenericExpression() throws -> GenericExpression {
+        // TODO - Fully featured type constraints and, eventually, value constraints
+        let tid = try parseTypeIdentifier()
+        
+        return GenericExpression(value: tid, grouped: true)
+    }
+    
+    func parseTypeConstraints() throws -> ConstraintList {
+        _ = try expect(tokenType: .LAngle)
+        
+        var constraints: [GenericExpression] = []
+        
+        var next = try peek()
+        
+        guard next.type != .RAngle else { throw OrbitError(message: "Empty generic expressions are not allowed") }
+        
+        while next.type != .RAngle {
+            let gen = try parseGenericExpression()
+            
+            constraints.append(gen)
+            
+            next = try peek()
+            
+            if next.type == .Comma {
+                _ = try consume()
+            }
+        }
+        
+        _ = try expect(tokenType: .RAngle)
+        
+        return ConstraintList(value: constraints, grouped: true)
     }
     
     func parse(token: Token) throws -> Expression {
