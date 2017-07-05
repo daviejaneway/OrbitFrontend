@@ -56,7 +56,7 @@ public protocol TopLevelExpression : Expression {}
 public protocol Statement : Expression {}
 
 public struct RootExpression : Expression {
-    var body: [TopLevelExpression] = []
+    public var body: [TopLevelExpression] = []
 }
 
 public protocol NamedExpression : Expression {
@@ -420,17 +420,17 @@ public struct MethodExpression<S: SignatureExpression> : ExportableExpression {
 }
 
 public struct APIExpression : TopLevelExpression {
-    let name: TypeIdentifierExpression
-    let body: [Expression]
+    public let name: TypeIdentifierExpression
+    public let body: [Expression]
 }
 
 public struct ReturnStatement : Statement {
-    let value: Expression
+    public let value: Expression
 }
 
 public struct AssignmentStatement : Statement {
-    let name: IdentifierExpression
-    let value: Expression
+    public let name: IdentifierExpression
+    public let value: Expression
 }
 
 public typealias ArgType = GroupableExpression & RValueExpression
@@ -443,7 +443,7 @@ public protocol CallExpression : Statement, RValueExpression {
 public struct StaticCallExpression : CallExpression, GroupableExpression {
     public var grouped: Bool = false
     
-    let receiver: TypeIdentifierExpression
+    public let receiver: TypeIdentifierExpression
     public let methodName: IdentifierExpression
     public let args: [ArgType]
     
@@ -455,7 +455,7 @@ public struct StaticCallExpression : CallExpression, GroupableExpression {
 public struct InstanceCallExpression : CallExpression, GroupableExpression {
     public var grouped: Bool = false
     
-    let receiver: GroupableExpression
+    public let receiver: GroupableExpression
     public let methodName: IdentifierExpression
     public let args: [ArgType]
     
@@ -467,8 +467,8 @@ public struct InstanceCallExpression : CallExpression, GroupableExpression {
 public struct PropertyAccessExpression : GroupableExpression {
     public var grouped: Bool = false
     
-    let receiver: Expression
-    let propertyName: IdentifierExpression
+    public let receiver: Expression
+    public let propertyName: IdentifierExpression
     
     public func dump() -> String {
         return ""
@@ -477,7 +477,7 @@ public struct PropertyAccessExpression : GroupableExpression {
 
 public struct UnaryExpression : ValueExpression, RValueExpression {
     public let value: GroupableExpression
-    let op: Operator
+    public let op: Operator
     public var grouped: Bool
     
     public func dump() -> String {
@@ -490,9 +490,9 @@ public struct BinaryExpression : ValueExpression, RValueExpression {
     
     public var value: (left: GroupableExpression, right: GroupableExpression)
     
-    let left: GroupableExpression
-    var right: GroupableExpression
-    let op: Operator
+    public let left: GroupableExpression
+    public var right: GroupableExpression
+    public let op: Operator
     
     /// if a binary expression is grouped, all operator precedence is ignored
     public var grouped = false
