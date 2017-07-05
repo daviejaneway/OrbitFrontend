@@ -96,7 +96,7 @@ public struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValu
     
     public let value: String
     public var grouped: Bool
-    var isList: Bool = false
+    public var isList: Bool = false
     
     init(value: String, grouped: Bool = false, isList: Bool = false) {
         self.value = value
@@ -111,7 +111,7 @@ public struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValu
 
 public struct PairExpression : NamedExpression, TypedExpression {
     public let name: IdentifierExpression
-    let type: TypeIdentifierExpression
+    public let type: TypeIdentifierExpression
 }
 
 public struct IntLiteralExpression : ValueExpression, RValueExpression {
@@ -258,18 +258,18 @@ public class Operator : Hashable, Equatable {
     // This var will be incremented automatically every time a new Operator is init'd
     private static var _operatorId: Int = 0
     
-    static let Addition = Operator(symbol: "+")
-    static let Subtraction = Operator(symbol: "-")
+    public static let Addition = Operator(symbol: "+")
+    public static let Subtraction = Operator(symbol: "-")
     
-    static let Multiplication = Operator(symbol: "*")
-    static let Division = Operator(symbol: "/")
-    static let Modulo = Operator(symbol: "%")
+    public static let Multiplication = Operator(symbol: "*")
+    public static let Division = Operator(symbol: "/")
+    public static let Modulo = Operator(symbol: "%")
     
-    static let Power = Operator(symbol: "**")
+    public static let Power = Operator(symbol: "**")
     // MAYBE - static let Root = Operator(symbol: "√")
     
-    static let Negation = Operator(symbol: "-", position: .Prefix)
-    static let Not = Operator(symbol: "!", position: .Prefix)
+    public static let Negation = Operator(symbol: "-", position: .Prefix)
+    public static let Not = Operator(symbol: "!", position: .Prefix)
     
     private(set) static var operators = [
         Addition, Subtraction,
@@ -280,11 +280,11 @@ public class Operator : Hashable, Equatable {
     
     public let hashValue: Int
 
-    let symbol: String
-    let position: OperatorPosition
+    public let symbol: String
+    public let position: OperatorPosition
     private(set) var relationships: [Operator : OperatorPrecedence]
     
-    init(symbol: String, position: OperatorPosition = .Infix, relationships: [Operator : OperatorPrecedence] = [:]) {
+    public init(symbol: String, position: OperatorPosition = .Infix, relationships: [Operator : OperatorPrecedence] = [:]) {
         self.symbol = symbol
         self.relationships = relationships
         self.hashValue = Operator._operatorId
@@ -293,7 +293,7 @@ public class Operator : Hashable, Equatable {
         Operator._operatorId += 1
     }
     
-    func defineRelationship(other: Operator, precedence: OperatorPrecedence) throws {
+    public func defineRelationship(other: Operator, precedence: OperatorPrecedence) throws {
         guard self.relationships[other] == nil else { throw OrbitError.redefining(operator: self, withPrecedence: precedence, against: other) }
         
         self.relationships[other] = precedence
@@ -303,13 +303,13 @@ public class Operator : Hashable, Equatable {
         try other.defineRelationship(other: self, precedence: precedence.opposite())
     }
     
-    static func declare(op: Operator) throws {
+    public static func declare(op: Operator) throws {
         guard !self.operators.contains(op) else { throw OrbitError.operatorExists(op: op) }
         
         self.operators.append(op)
     }
     
-    static func lookup(operatorWithSymbol: String, inPosition: OperatorPosition) throws -> Operator {
+    public static func lookup(operatorWithSymbol: String, inPosition: OperatorPosition) throws -> Operator {
         let ops = self.operators.filter { $0.symbol == operatorWithSymbol && $0.position == inPosition }
         
         // Shouldn't be possible to have two operators with the same symbol & position
@@ -323,7 +323,7 @@ public class Operator : Hashable, Equatable {
             (lhs.symbol == rhs.symbol && lhs.position == rhs.position)
     }
     
-    static func initialiseBuiltInOperators() throws {
+    public static func initialiseBuiltInOperators() throws {
         try Addition.defineRelationship(other: Addition, precedence: .Equal)
         try Addition.defineRelationship(other: Subtraction, precedence: .Equal)
         try Addition.defineRelationship(other: Multiplication, precedence: .Lesser)
@@ -376,8 +376,8 @@ public class Operator : Hashable, Equatable {
 }
 
 public struct TypeDefExpression : ExportableExpression {
-    let name: TypeIdentifierExpression
-    let properties: [PairExpression]
+    public let name: TypeIdentifierExpression
+    public let properties: [PairExpression]
     // TODO - Trait conformance
 }
 
@@ -415,8 +415,8 @@ public struct InstanceSignatureExpression : SignatureExpression {
 }
 
 public struct MethodExpression<S: SignatureExpression> : ExportableExpression {
-    let signature: S
-    let body: [Statement]
+    public let signature: S
+    public let body: [Statement]
 }
 
 public struct APIExpression : TopLevelExpression {
