@@ -30,4 +30,4 @@ The end result of a parsing pass is an Abstract Syntax Tree. This tree is basis 
 The parser is a work in progress but is capable of parsing simple programs.
 
 - Operator precedence in complex expressions is grouping incorrectly without parentheses.
-- Method calls are not yet recursive, meaning you can only go two levels deep with chained method calls e.g. `a.b().c()` works, `a.b().c().d()` does not.
+- ~~Method calls are not yet recursive, meaning you can only go two levels deep with chained method calls e.g. `a.b().c()` works, `a.b().c().d()` does not.~~ **FIXED**

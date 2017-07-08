@@ -628,6 +628,7 @@ public class Parser : CompilationPhase {
     }
     
     func parseTypeIdentifier() throws -> TypeIdentifierExpression {
+        // TODO - Allow fully qualified types, i.e. Orb::Core::Int
         let next = try peek()
         
         guard next.type == .LBracket else {
