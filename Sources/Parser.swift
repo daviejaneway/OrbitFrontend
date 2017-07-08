@@ -51,12 +51,24 @@ extension OrbitError {
     }
 }
 
-public protocol Expression {}
+private var HashCounter = 0
+
+func nextHashValue() -> Int {
+    HashCounter += 1
+    return HashCounter
+}
+
+public protocol Expression {
+    var hashValue: Int { get }
+}
+
 public protocol TopLevelExpression : Expression {}
 public protocol Statement : Expression {}
 
 public struct RootExpression : Expression {
     public var body: [TopLevelExpression] = []
+    
+    public let hashValue: Int = nextHashValue()
 }
 
 public protocol NamedExpression : Expression {
@@ -83,6 +95,8 @@ public protocol RValueExpression {}
 public struct IdentifierExpression : LValueExpression, RValueExpression, ValueExpression {
     public typealias ValueType = String
     
+    public let hashValue: Int = nextHashValue()
+    
     public let value: String
     public var grouped: Bool
     
@@ -93,6 +107,8 @@ public struct IdentifierExpression : LValueExpression, RValueExpression, ValueEx
 
 public struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpression {
     public typealias ValueType = String
+    
+    public let hashValue: Int = nextHashValue()
     
     public let value: String
     public var grouped: Bool
@@ -112,10 +128,14 @@ public struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValu
 public struct PairExpression : NamedExpression, TypedExpression {
     public let name: IdentifierExpression
     public let type: TypeIdentifierExpression
+    
+    public let hashValue: Int = nextHashValue()
 }
 
 public struct IntLiteralExpression : ValueExpression, RValueExpression {
     public typealias ValueType = Int
+    
+    public let hashValue: Int = nextHashValue()
     
     public let value: Int
     public var grouped: Bool
@@ -128,6 +148,8 @@ public struct IntLiteralExpression : ValueExpression, RValueExpression {
 public struct RealLiteralExpression : ValueExpression, RValueExpression {
     public typealias ValueType = Double
     
+    public let hashValue: Int = nextHashValue()
+    
     public let value: Double
     public var grouped: Bool
     
@@ -138,6 +160,8 @@ public struct RealLiteralExpression : ValueExpression, RValueExpression {
 
 public struct BoolLiteralExpression : ValueExpression, RValueExpression {
     public typealias ValueType = Bool
+    
+    public let hashValue: Int = nextHashValue()
     
     public let value: Bool
     public var grouped: Bool
@@ -150,6 +174,8 @@ public struct BoolLiteralExpression : ValueExpression, RValueExpression {
 public struct StringLiteralExpression : ValueExpression, RValueExpression {
     public typealias ValueType = String
     
+    public let hashValue: Int = nextHashValue()
+    
     public let value: String
     public var grouped: Bool
     
@@ -160,6 +186,8 @@ public struct StringLiteralExpression : ValueExpression, RValueExpression {
 
 public struct ListExpression : ValueExpression, RValueExpression {
     public typealias ValueType = [Expression]
+    
+    public let hashValue: Int = nextHashValue()
     
     public let value: [Expression]
     public var grouped: Bool = false
@@ -172,6 +200,8 @@ public struct ListExpression : ValueExpression, RValueExpression {
 public struct MapEntryExpression : ValueExpression {
     public typealias ValueType = (key: Expression, value: Expression)
     
+    public let hashValue: Int = nextHashValue()
+    
     public let value: ValueType
     public var grouped: Bool
     
@@ -183,6 +213,8 @@ public struct MapEntryExpression : ValueExpression {
 public struct MapExpression : ValueExpression, RValueExpression {
     public typealias ValueType = [MapEntryExpression]
     
+    public let hashValue: Int = nextHashValue()
+    
     public let value: ValueType
     public var grouped: Bool
     
@@ -193,6 +225,8 @@ public struct MapExpression : ValueExpression, RValueExpression {
 
 public struct TupleLiteralExpression : ValueExpression, RValueExpression {
     public typealias ValueType = [Expression]
+    
+    public let hashValue: Int = nextHashValue()
     
     public let value: ValueType
     public var grouped = false
@@ -207,6 +241,8 @@ public struct TupleLiteralExpression : ValueExpression, RValueExpression {
 public struct GenericExpression : ValueExpression {
     public typealias ValueType = TypeIdentifierExpression
     
+    public let hashValue: Int = nextHashValue()
+    
     public let value: ValueType
     public var grouped: Bool = false
     
@@ -217,6 +253,8 @@ public struct GenericExpression : ValueExpression {
 
 public struct ConstraintList : ValueExpression {
     public typealias ValueType = [GenericExpression]
+    
+    public let hashValue: Int = nextHashValue()
     
     public let value: ValueType
     public var grouped: Bool = false
@@ -379,6 +417,8 @@ public struct TypeDefExpression : ExportableExpression {
     public let name: TypeIdentifierExpression
     public let properties: [PairExpression]
     // TODO - Trait conformance
+    
+    public let hashValue: Int = nextHashValue()
 }
 
 public protocol YieldingExpression : Expression {
@@ -397,6 +437,8 @@ public protocol SignatureExpression : Expression, YieldingExpression, NamedExpre
 public struct StaticSignatureExpression : SignatureExpression {
     public typealias Receiver = TypeIdentifierExpression
     
+    public let hashValue: Int = nextHashValue()
+    
     public let name: IdentifierExpression
     public let receiverType: TypeIdentifierExpression
     public let parameters: [PairExpression]
@@ -406,6 +448,8 @@ public struct StaticSignatureExpression : SignatureExpression {
 
 public struct InstanceSignatureExpression : SignatureExpression {
     public typealias Receiver = PairExpression
+    
+    public let hashValue: Int = nextHashValue()
     
     public let name: IdentifierExpression
     public let receiverType: PairExpression
@@ -417,20 +461,28 @@ public struct InstanceSignatureExpression : SignatureExpression {
 public struct MethodExpression<S: SignatureExpression> : ExportableExpression {
     public let signature: S
     public let body: [Statement]
+    
+    public let hashValue: Int = nextHashValue()
 }
 
 public struct APIExpression : TopLevelExpression {
     public let name: TypeIdentifierExpression
     public let body: [Expression]
+    
+    public let hashValue: Int = nextHashValue()
 }
 
 public struct ReturnStatement : Statement {
     public let value: Expression
+    
+    public let hashValue: Int = nextHashValue()
 }
 
 public struct AssignmentStatement : Statement {
     public let name: IdentifierExpression
     public let value: Expression
+    
+    public let hashValue: Int = nextHashValue()
 }
 
 public typealias ArgType = GroupableExpression & RValueExpression
@@ -442,6 +494,8 @@ public protocol CallExpression : Statement, RValueExpression {
 
 public struct StaticCallExpression : CallExpression, GroupableExpression {
     public var grouped: Bool = false
+    
+    public let hashValue: Int = nextHashValue()
     
     public let receiver: TypeIdentifierExpression
     public let methodName: IdentifierExpression
@@ -455,6 +509,8 @@ public struct StaticCallExpression : CallExpression, GroupableExpression {
 public struct InstanceCallExpression : CallExpression, GroupableExpression {
     public var grouped: Bool = false
     
+    public let hashValue: Int = nextHashValue()
+    
     public let receiver: GroupableExpression
     public let methodName: IdentifierExpression
     public let args: [ArgType]
@@ -466,6 +522,8 @@ public struct InstanceCallExpression : CallExpression, GroupableExpression {
 
 public struct PropertyAccessExpression : GroupableExpression {
     public var grouped: Bool = false
+    
+    public let hashValue: Int = nextHashValue()
     
     public let receiver: Expression
     public let propertyName: IdentifierExpression
@@ -480,6 +538,8 @@ public struct UnaryExpression : ValueExpression, RValueExpression {
     public let op: Operator
     public var grouped: Bool
     
+    public let hashValue: Int = nextHashValue()
+    
     public func dump() -> String {
         return self.grouped ? "(\(self.op.symbol)\(self.value.dump()))" : "\(self.op.symbol)\(self.value.dump())"
     }
@@ -487,6 +547,8 @@ public struct UnaryExpression : ValueExpression, RValueExpression {
 
 public struct BinaryExpression : ValueExpression, RValueExpression {
     public typealias ValueType = (left: GroupableExpression, right: GroupableExpression)
+    
+    public let hashValue: Int = nextHashValue()
     
     public var value: (left: GroupableExpression, right: GroupableExpression)
     
