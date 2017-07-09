@@ -41,7 +41,7 @@ class ParserTests: XCTestCase {
                 case Operator.Division: return lhs / rhs
                 case Operator.Power: return lhs ** rhs
                 
-                default: throw OrbitError.unknownOperator(symbol: expr.op.symbol, position: .Infix)
+                default: throw OrbitError.unknownOperator(symbol: expr.op.symbol, position: .Infix, token: Token(type: .Whitespace, value: ""))
             }
         } else if let expr = expression as? UnaryExpression {
             let value = try interpretIntLiteralExpression(expression: expr.value)
@@ -473,12 +473,12 @@ class ParserTests: XCTestCase {
     
     func testRedclareOperator() {
         let op = Operator(symbol: "+")
-        XCTAssertThrowsError(try Operator.declare(op: op))
+        XCTAssertThrowsError(try Operator.declare(op: op, token: Token(type: .Operator, value: "+")))
         
         let before = Operator.operators.count
         
         let newOp = Operator(symbol: "+++++")
-        XCTAssertNoThrow(try Operator.declare(op: newOp))
+        XCTAssertNoThrow(try Operator.declare(op: newOp, token: Token(type: .Operator, value: "+++++")))
         XCTAssertEqual(before + 1, Operator.operators.count)
     }
     

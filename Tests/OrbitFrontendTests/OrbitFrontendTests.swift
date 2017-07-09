@@ -2,6 +2,9 @@ import XCTest
 @testable import OrbitFrontend
 
 class OrbitFrontendTests : XCTestCase {
+    
+    let pos = SourcePosition()
+    
     private func OrbTestLex(src: String, expectedTokens: [Token], expectedSourcePosition: SourcePosition? = nil) {
         let lexer = Lexer()
         
@@ -21,11 +24,11 @@ class OrbitFrontendTests : XCTestCase {
     }
     
 	func testLexIntSingle() {
-        OrbTestLex(src: "1", expectedTokens: [Token(type: .Int, value: "1")], expectedSourcePosition: (line: 0, character: 1))
+        OrbTestLex(src: "1", expectedTokens: [Token(type: .Int, value: "1")], expectedSourcePosition: SourcePosition(line: 0, character: 1))
 	}
     
     func testLexIntMulti() {
-        OrbTestLex(src: "123", expectedTokens: [Token(type: .Int, value: "123")], expectedSourcePosition: (line: 0, character: 3))
+        OrbTestLex(src: "123", expectedTokens: [Token(type: .Int, value: "123")], expectedSourcePosition: SourcePosition(line: 0, character: 3))
     }
     
     func testLexIntWhitespace() {
@@ -34,7 +37,7 @@ class OrbitFrontendTests : XCTestCase {
             Token(type: .Int, value: "9"),
             Token(type: .Int, value: "33"),
             Token(type: .Int, value: "1697")
-        ], expectedSourcePosition: (line: 0, character: 13))
+        ], expectedSourcePosition: SourcePosition(line: 0, character: 13))
     }
     
     func testLexKeywords() {
@@ -54,14 +57,14 @@ class OrbitFrontendTests : XCTestCase {
     func testLexIdentifier() {
         OrbTestLex(src: "abc", expectedTokens: [
             Token(type: .Identifier, value: "abc")
-        ], expectedSourcePosition: (line: 0, character: 3))
+        ], expectedSourcePosition: SourcePosition(line: 0, character: 3))
     }
     
     func testLexIdentifierNewLine() {
         OrbTestLex(src: "abc\ndef", expectedTokens: [
             Token(type: .Identifier, value: "abc"),
             Token(type: .Identifier, value: "def")
-        ], expectedSourcePosition: (line: 1, character: 7))
+        ], expectedSourcePosition: SourcePosition(line: 1, character: 7))
     }
     
     func testLexRealSingle() {
@@ -74,7 +77,7 @@ class OrbitFrontendTests : XCTestCase {
         OrbTestLex(src: "1.1 999.99191", expectedTokens: [
             Token(type: .Real, value: "1.1"),
             Token(type: .Real, value: "999.99191")
-        ], expectedSourcePosition: (line: 0, character: 13))
+        ], expectedSourcePosition: SourcePosition(line: 0, character: 13))
     }
     
     func testLexTypeIdentifierSingle() {

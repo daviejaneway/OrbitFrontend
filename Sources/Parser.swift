@@ -10,44 +10,45 @@ import Foundation
 import OrbitCompilerUtils
 
 extension OrbitError {
+    
     static func ranOutOfTokens() -> OrbitError {
         return OrbitError(message: "There are no more lexical tokens to consume")
     }
     
     static func expectedTopLevelDeclaration(token: Token) -> OrbitError {
-        return OrbitError(message: "Expected top level declaration, found: \(token.type)")
+        return OrbitError(message: "Expected top level declaration, found: \(token.type)\(token.position)")
     }
     
     static func unexpectedToken(token: Token) -> OrbitError {
-        return OrbitError(message: "Unexpected lexical token found: \(token.type) -- \(token.value)")
+        return OrbitError(message: "Unexpected lexical token found: \(token.type) -- \(token.value)\(token.position)")
     }
     
     static func nothingToParse() -> OrbitError {
         return OrbitError(message: "Nothing to parse")
     }
     
-    static func missingReceiver() -> OrbitError {
-        return OrbitError(message: "Method signatures must declare a receiver matching either (Type) or (self Type)")
+    static func missingReceiver(token: Token) -> OrbitError {
+        return OrbitError(message: "Method signatures must declare a receiver matching either (Type) or (self Type)\(token.position)")
     }
     
-    static func multipleReceivers() -> OrbitError {
-        return OrbitError(message: "A signature must not declare more than one receiver")
+    static func multipleReceivers(token: Token) -> OrbitError {
+        return OrbitError(message: "A signature must not declare more than one receiver\(token.position)")
     }
     
-    static func multipleReturns() -> OrbitError {
-        return OrbitError(message: "To return multiple values from a method, use a Tuple")
+    static func multipleReturns(token: Token) -> OrbitError {
+        return OrbitError(message: "To return multiple values from a method, use a Tuple\(token.position)")
     }
     
     static func redefining(`operator`: Operator, withPrecedence: OperatorPrecedence, against: Operator) -> OrbitError {
         return OrbitError(message: "Attempted to redefine precedence for operator '\(`operator`.symbol)' in relation to '\(against.symbol)'")
     }
     
-    static func operatorExists(op: Operator) -> OrbitError {
-        return OrbitError(message: "Operator '\(op.symbol)' already exists in \(op.position) position")
+    static func operatorExists(op: Operator, token: Token) -> OrbitError {
+        return OrbitError(message: "Operator '\(op.symbol)' already exists in \(op.position) position\(token.position)")
     }
     
-    static func unknownOperator(symbol: String, position: OperatorPosition) -> OrbitError {
-        return OrbitError(message: "Unknown operator '\(symbol)' in \(position) position")
+    static func unknownOperator(symbol: String, position: OperatorPosition, token: Token) -> OrbitError {
+        return OrbitError(message: "Unknown operator '\(symbol)' in \(position) position\(token.position)")
     }
 }
 
@@ -341,17 +342,17 @@ public class Operator : Hashable, Equatable {
         try other.defineRelationship(other: self, precedence: precedence.opposite())
     }
     
-    public static func declare(op: Operator) throws {
-        guard !self.operators.contains(op) else { throw OrbitError.operatorExists(op: op) }
+    public static func declare(op: Operator, token: Token) throws {
+        guard !self.operators.contains(op) else { throw OrbitError.operatorExists(op: op, token: token) }
         
         self.operators.append(op)
     }
     
-    public static func lookup(operatorWithSymbol: String, inPosition: OperatorPosition) throws -> Operator {
+    public static func lookup(operatorWithSymbol: String, inPosition: OperatorPosition, token: Token) throws -> Operator {
         let ops = self.operators.filter { $0.symbol == operatorWithSymbol && $0.position == inPosition }
         
         // Shouldn't be possible to have two operators with the same symbol & position
-        guard ops.count == 1, let op = ops.first else { throw OrbitError.unknownOperator(symbol: operatorWithSymbol, position: inPosition) }
+        guard ops.count == 1, let op = ops.first else { throw OrbitError.unknownOperator(symbol: operatorWithSymbol, position: inPosition, token: token) }
         
         return op
     }
@@ -843,7 +844,7 @@ public class Parser : CompilationPhase {
     func parseStaticSignature() throws -> StaticSignatureExpression {
         let receiver = try parseTypeIdentifierList()
         
-        guard receiver.count == 1 else { throw OrbitError.multipleReceivers() }
+        guard receiver.count == 1 else { throw OrbitError.multipleReceivers(token: try peek()) }
         
         let name = try parseIdentifier()
         let gen = self.attempt(parseFunc: self.parseTypeConstraints) as? ConstraintList
@@ -855,7 +856,7 @@ public class Parser : CompilationPhase {
         }
         
         // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
-        guard ret.count == 1 else { throw OrbitError.multipleReturns() }
+        guard ret.count == 1 else { throw OrbitError.multipleReturns(token: try peek()) }
         
         return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
     }
@@ -863,7 +864,7 @@ public class Parser : CompilationPhase {
     func parseInstanceSignature() throws -> InstanceSignatureExpression {
         let receiver = try parsePairList()
         
-        guard receiver.count == 1 else { throw OrbitError.multipleReceivers() }
+        guard receiver.count == 1 else { throw OrbitError.multipleReceivers(token: try peek()) }
         
         let name = try parseIdentifier()
         let gen = self.attempt(parseFunc: self.parseTypeConstraints) as? ConstraintList
@@ -875,7 +876,7 @@ public class Parser : CompilationPhase {
         }
         
         // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
-        guard ret.count == 1 else { throw OrbitError.multipleReturns() }
+        guard ret.count == 1 else { throw OrbitError.multipleReturns(token: try peek()) }
         
         return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
     }
@@ -886,7 +887,7 @@ public class Parser : CompilationPhase {
         let next = try peek()
         
         // Leaving the receiver empty is not legal
-        guard next.type != .RParen else { throw OrbitError.missingReceiver() }
+        guard next.type != .RParen else { throw OrbitError.missingReceiver(token: next) }
         
         rewind(tokens: [openParen])
         
@@ -1013,7 +1014,7 @@ public class Parser : CompilationPhase {
     func parseOperator(position: OperatorPosition) throws -> Operator {
         let op = try expect(tokenType: .Operator)
         
-        return try Operator.lookup(operatorWithSymbol: op.value, inPosition: position)
+        return try Operator.lookup(operatorWithSymbol: op.value, inPosition: position, token: op)
     }
     
     func parseStatement() throws -> Statement {
@@ -1164,7 +1165,7 @@ public class Parser : CompilationPhase {
         let opToken = try expect(tokenType: .Operator)
         let value = try parsePrimary()
         
-        let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Prefix)
+        let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Prefix, token: opToken)
         
         return UnaryExpression(value: value as! GroupableExpression, op: op, grouped: true)
     }
