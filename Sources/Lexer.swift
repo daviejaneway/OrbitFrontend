@@ -1,7 +1,7 @@
 import Foundation
 import OrbitCompilerUtils
 
-typealias SourcePosition = (line: Int, character: Int)
+public typealias SourcePosition = (line: Int, character: Int)
 
 public extension OrbitError {
     static func unexpectedLexicalElement(lexer: Lexer, str: String) -> OrbitError {
@@ -66,9 +66,9 @@ public struct TokenType : Equatable {
 }
 
 public struct Token {
-	let type: TokenType
-	let value: String
-	//let position: SourcePosition
+	public let type: TokenType
+	public let value: String
+	public let position: SourcePosition
 }
 
 typealias TokenGenerator = (TokenType, String) -> Token
@@ -150,7 +150,7 @@ public class Lexer : CompilationPhase {
                         break
                     }
                     
-                    tokens.append(Token(type: tt, value: m))
+                    tokens.append(Token(type: tt, value: m, position: self.currentPosition))
                     
                     break
                 }
