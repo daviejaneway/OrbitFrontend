@@ -447,20 +447,20 @@ public struct StaticSignatureExpression : SignatureExpression {
     public let genericConstraints: ConstraintList?
 }
 
-public struct InstanceSignatureExpression : SignatureExpression {
-    public typealias Receiver = PairExpression
-    
-    public let hashValue: Int = nextHashValue()
-    
-    public let name: IdentifierExpression
-    public let receiverType: PairExpression
-    public let parameters: [PairExpression]
-    public let returnType: TypeIdentifierExpression?
-    public let genericConstraints: ConstraintList?
-}
+//public struct InstanceSignatureExpression : SignatureExpression {
+//    public typealias Receiver = PairExpression
+//    
+//    public let hashValue: Int = nextHashValue()
+//    
+//    public let name: IdentifierExpression
+//    public let receiverType: PairExpression
+//    public let parameters: [PairExpression]
+//    public let returnType: TypeIdentifierExpression?
+//    public let genericConstraints: ConstraintList?
+//}
 
-public struct MethodExpression<S: SignatureExpression> : ExportableExpression {
-    public let signature: S
+public struct MethodExpression : ExportableExpression {
+    public let signature: StaticSignatureExpression
     public let body: [Statement]
     
     public let hashValue: Int = nextHashValue()
@@ -572,6 +572,46 @@ public struct BinaryExpression : ValueExpression, RValueExpression {
         return self.grouped ? "(\(self.left.dump()) \(self.op.symbol) \(self.right.dump()))" : "\(self.left.dump()) \(self.op.symbol) \(self.right.dump())"
     }
 }
+
+// TODO - Each production in the grammar should have an associated ParseRule object.
+// These mini parsers can then be combined and created on the fly (if reflection is good enough).
+//public class ParseRule : CompilationPhase {
+//    public typealias InputType = (Lexer, [Token])
+//    public typealias OutputType = Expression
+//    
+//    public let ruleName: String
+//    
+//    private var tokens: [Token] = []
+//    
+//    private(set) var consumed: [Token] = []
+//    
+//    init(ruleName: String) {
+//        self.ruleName = ruleName
+//    }
+//    
+//    func hasTokens() -> Bool {
+//        return self.tokens.count > 0
+//    }
+//    
+//    func consume() throws -> Token {
+//        guard self.hasTokens() else { throw OrbitError(message: "No more tokens to consume") }
+//        
+//        return self.tokens.remove(at: 0)
+//    }
+//    
+//    func peek() throws -> Token {
+//        guard self.hasTokens() else { throw OrbitError(message: "No more tokens to consume") }
+//        
+//        return self.tokens[0]
+//    }
+//    
+//    public func execute(input: (Lexer, [Token])) throws -> Expression {
+//        self.tokens = input
+//        
+//        guard let token = input.first else { throw OrbitError(message: "Nothing to parse") }
+//        
+//    }
+//}
 
 public class Parser : CompilationPhase {
     public typealias InputType = [Token]
@@ -861,27 +901,33 @@ public class Parser : CompilationPhase {
         return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
     }
     
-    func parseInstanceSignature() throws -> InstanceSignatureExpression {
+    func parseInstanceSignature() throws -> StaticSignatureExpression {
         let receiver = try parsePairList()
         
         guard receiver.count == 1 else { throw OrbitError.multipleReceivers(token: try peek()) }
         
         let name = try parseIdentifier()
         let gen = self.attempt(parseFunc: self.parseTypeConstraints) as? ConstraintList
-        let args = try parsePairList()
+        var args = try parsePairList()
         let ret = try parseTypeIdentifierList()
         
+        args.insert(receiver[0], at: 0)
+        
+        // Instance methods are just sugar for static methods that take an extra "self" parameter.
+        // We do the transformation now so that the backend doesn't need to know about instance vs static.
         guard ret.count > 0 else {
-            return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen)
+            return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: nil, genericConstraints: gen)
+            //return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen)
         }
         
         // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
         guard ret.count == 1 else { throw OrbitError.multipleReturns(token: try peek()) }
         
-        return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
+        return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: ret[0], genericConstraints: gen)
+        //return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
     }
     
-    func parseSignature() throws -> Expression {
+    func parseSignature() throws -> StaticSignatureExpression {
         let openParen = try expect(tokenType: .LParen)
         
         let next = try peek()
@@ -901,18 +947,14 @@ public class Parser : CompilationPhase {
     }
     
     func parseMethod() throws -> ExportableExpression {
-        let signature = try parseSignature() as! YieldingExpression & NamedExpression
+        let signature = try parseSignature()
         
         var next = try peek()
         
         guard next.type != .Shelf else {
             _ = try consume()
             
-            if let staticSignature = signature as? StaticSignatureExpression {
-                return MethodExpression(signature: staticSignature, body: [])
-            }
-            
-            return MethodExpression(signature: signature as! InstanceSignatureExpression, body: [])
+            return MethodExpression(signature: signature, body: [])
         }
         
         var body = [Statement]()
@@ -949,11 +991,7 @@ public class Parser : CompilationPhase {
             throw OrbitError(message: "Superfluous return statement for method \(signature.name.value)")
         }
         
-        guard let staticSignature = signature as? StaticSignatureExpression else {
-            return MethodExpression(signature: signature as! InstanceSignatureExpression, body: body)
-        }
-        
-        return MethodExpression(signature: staticSignature, body: body)
+        return MethodExpression(signature: signature, body: body)
     }
     
     func parseExportable(token: Token) throws -> ExportableExpression {

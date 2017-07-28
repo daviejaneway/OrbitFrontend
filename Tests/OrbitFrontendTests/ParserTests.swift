@@ -958,20 +958,20 @@ class ParserTests: XCTestCase {
         
         var result = try! parser.parseInstanceSignature()
         
-        XCTAssertEqual("Int", result.receiverType.type.value)
+        XCTAssertEqual("Int", result.receiverType.value)
         XCTAssertEqual("power", result.name.value)
         XCTAssertEqual(1, result.genericConstraints!.value.count)
-        XCTAssertEqual(2, result.parameters.count)
+        XCTAssertEqual(3, result.parameters.count)
         XCTAssertEqual("T", result.returnType!.value)
         
         parser.tokens = lex(source: "(self Int) power (x Int, y Int) (Int)")
         
         result = try! parser.parseInstanceSignature()
         
-        XCTAssertEqual("Int", result.receiverType.type.value)
+        XCTAssertEqual("Int", result.receiverType.value)
         XCTAssertEqual("power", result.name.value)
         XCTAssertNil(result.genericConstraints)
-        XCTAssertEqual(2, result.parameters.count)
+        XCTAssertEqual(3, result.parameters.count)
         XCTAssertEqual("Int", result.returnType!.value)
         
         parser.tokens = lex(source: "(self Int) power (x Int, y Int) ()")
@@ -989,7 +989,7 @@ class ParserTests: XCTestCase {
             "   return z" +
             "...")
         
-        let result = try! parser.parseMethod() as! MethodExpression<InstanceSignatureExpression>
+        let result = try! parser.parseMethod() as! MethodExpression
         
         XCTAssertEqual(2, result.body.count)
         
@@ -998,7 +998,7 @@ class ParserTests: XCTestCase {
             "   return z" +
             "...")
         
-        let result2 = try! parser.parseMethod() as! MethodExpression<StaticSignatureExpression>
+        let result2 = try! parser.parseMethod() as! MethodExpression
         
         XCTAssertEqual(2, result2.body.count)
     }
@@ -1021,7 +1021,7 @@ class ParserTests: XCTestCase {
             
             XCTAssertEqual(1, result.body.count)
             XCTAssertTrue(result.body[0] is APIExpression)
-            XCTAssertTrue((result.body[0] as! APIExpression).body[0] is MethodExpression<StaticSignatureExpression>)
+            XCTAssertTrue((result.body[0] as! APIExpression).body[0] is MethodExpression)
         } catch let ex as OrbitError {
             print(ex.message)
         } catch {
