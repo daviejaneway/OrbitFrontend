@@ -521,7 +521,7 @@ public struct InstanceCallExpression : CallExpression, GroupableExpression {
     }
 }
 
-public struct PropertyAccessExpression : GroupableExpression {
+public struct PropertyAccessExpression : GroupableExpression, RValueExpression {
     public var grouped: Bool = false
     
     public let hashValue: Int = nextHashValue()
@@ -531,6 +531,19 @@ public struct PropertyAccessExpression : GroupableExpression {
     
     public func dump() -> String {
         return ""
+    }
+}
+
+public struct IndexAccessExpression : GroupableExpression, RValueExpression {
+    public var grouped: Bool = false
+    
+    public let hashValue: Int = nextHashValue()
+    
+    public let receiver: GroupableExpression
+    public let indices: [GroupableExpression]
+    
+    public func dump() -> String {
+        return "\(receiver.dump())[\(indices.map { $0.dump() }.joined(separator: ","))]"
     }
 }
 
@@ -1120,6 +1133,7 @@ public class Parser : CompilationPhase {
             
             case TokenType.Identifier:
                 let id = try parseIdentifier()
+                
                 guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: id) }) else { return id }
                 return call
             
@@ -1283,19 +1297,25 @@ public class Parser : CompilationPhase {
         return AssignmentStatement(name: lhs, value: rhs)
     }
     
-    func parseCallRhs() throws -> (method: IdentifierExpression, args: [ArgType], isPropertyAccess: Bool) {
+    func parseCallRhs() throws -> (method: IdentifierExpression, args: [ArgType], isPropertyAccess: Bool, isIndexAccess: Bool) {
         _ = try expect(tokenType: .Dot)
         let method = try parseIdentifier()
         
+        guard self.hasNext() else { return (method: method, args: [], isPropertyAccess: true, isIndexAccess: false) }
+        
         let next = try peek()
         
-        guard next.type == .LParen else {
-            return (method: method, args: [], isPropertyAccess: true)
+        if next.type == .LParen {
+            let args = try parseExpressions()
+            
+            return (method: method, args: args, isPropertyAccess: false, isIndexAccess: false)
+        } else if next.type == .LBracket {
+            let args = try parseExpressions()
+            
+            return (method: method, args: args, isPropertyAccess: false, isIndexAccess: true)
         }
         
-        let args = try parseExpressions()
-        
-        return (method: method, args: args, isPropertyAccess: false)
+        return (method: method, args: [], isPropertyAccess: true, isIndexAccess: false)
     }
     
     func parseStaticCall(lhs: Expression? = nil) throws -> Expression {
@@ -1317,11 +1337,35 @@ public class Parser : CompilationPhase {
     func parseInstanceCall(lhs: Expression? = nil) throws -> Expression {
         let receiver = try lhs ?? parseExpression()
         
+        guard self.hasNext() else { return receiver }
+        
+        if try peek().type == .LBracket {
+            let token = try consume()
+            
+            guard self.hasNext() else { throw OrbitError(message: "Unclosed brakcet: \(token.position)") }
+            
+            let next = try peek()
+            
+            guard next.type != .RBracket else { throw OrbitError(message: "Missing index value expression: \(next.position)") }
+            
+            rewind(tokens: [token])
+            
+            let idx = try parseExpressions(openParen: .LBracket, closeParen: .RBracket)
+            
+            return IndexAccessExpression(grouped: true, receiver: receiver as! GroupableExpression, indices: idx)
+        }
+        
         guard try self.hasNext() && peek().type == .Dot else { return receiver }
         
         let rhs = try parseCallRhs()
         
-        let call = InstanceCallExpression(grouped: true, receiver: receiver as! GroupableExpression, methodName: rhs.method, args: rhs.args)
+        var call: Expression
+        
+        if rhs.isPropertyAccess {
+           call = PropertyAccessExpression(grouped: true, receiver: receiver, propertyName: rhs.method)
+        } else {
+            call = InstanceCallExpression(grouped: true, receiver: receiver as! GroupableExpression, methodName: rhs.method, args: rhs.args)
+        }
         
         guard try self.hasNext() && peek().type == .Dot else { return call }
         
@@ -1330,6 +1374,9 @@ public class Parser : CompilationPhase {
     
     func parsePropertyAccess() throws -> PropertyAccessExpression {
         let receiver = try parseExpression()
+        
+        _ = try self.expect(tokenType: .Dot)
+        
         let propertyName = try parseIdentifier()
         
         return PropertyAccessExpression(grouped: false, receiver: receiver, propertyName: propertyName)

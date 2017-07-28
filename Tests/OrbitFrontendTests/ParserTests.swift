@@ -856,6 +856,42 @@ class ParserTests: XCTestCase {
     func testParseInstanceCall() {
         let parser = Parser()
         
+        // Test property access
+        parser.tokens = lex(source: "foo.xyz")
+        
+        var acc = try! parser.parseExpression() as! PropertyAccessExpression
+        
+        XCTAssertEqual("foo", (acc.receiver as! IdentifierExpression).value)
+        XCTAssertEqual("xyz", acc.propertyName.value)
+        
+        parser.tokens = lex(source: "foo.bar.baz.quux")
+        
+        acc = try! parser.parseExpression() as! PropertyAccessExpression
+        
+        XCTAssertTrue(acc.receiver is PropertyAccessExpression)
+        
+        parser.tokens = lex(source: "foo.bar.baz()")
+        
+        let access = try! parser.parseExpression() as! InstanceCallExpression
+        
+        XCTAssertTrue(access.receiver is PropertyAccessExpression)
+        
+        parser.tokens = lex(source: "foo.bar().baz")
+        
+        acc = try! parser.parseExpression() as! PropertyAccessExpression
+        
+        XCTAssertTrue(acc.receiver is InstanceCallExpression)
+        
+        // Test index access
+        
+        parser.tokens = lex(source: "foo[0, foo[1]]")
+        
+        let idx = try! parser.parseExpression() as! IndexAccessExpression
+        
+        XCTAssertEqual("foo", (idx.receiver as! IdentifierExpression).value)
+        XCTAssertEqual(0, (idx.indices[0] as! IntLiteralExpression).value)
+        XCTAssertTrue(idx.indices[1] is IndexAccessExpression)
+        
         parser.tokens = lex(source: "foo.bar()")
         
         var result = try! parser.parseExpression() as! InstanceCallExpression
