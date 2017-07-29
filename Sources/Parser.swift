@@ -419,6 +419,7 @@ public class Operator : Hashable, Equatable {
 public struct TypeDefExpression : ExportableExpression {
     public let name: TypeIdentifierExpression
     public let properties: [PairExpression]
+    public let propertyOrder: [String : Int]
     // TODO - Trait conformance
     
     public let hashValue: Int = nextHashValue()
@@ -831,13 +832,16 @@ public class Parser : CompilationPhase {
         
         guard next.type != .RParen else {
             _ = try consume()
-            return TypeDefExpression(name: name, properties: [])
+            return TypeDefExpression(name: name, properties: [], propertyOrder: [:])
         }
         
         let pairs = try parsePairs()
         _ = try expect(tokenType: .RParen)
         
-        return TypeDefExpression(name: name, properties: pairs)
+        var order = [String : Int]()
+        pairs.enumerated().forEach { order[$0.element.name.value] = $0.offset }
+        
+        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order)
     }
     
     /// A pair consists of an identifier followed by a type identifier, e.g. i Int
