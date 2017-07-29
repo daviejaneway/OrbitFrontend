@@ -133,9 +133,9 @@ public struct PairExpression : NamedExpression, TypedExpression {
     public let hashValue: Int = nextHashValue()
 }
 
-public protocol LiteralExpression : ValueExpression, RValueExpression {}
+public protocol LiteralExpression {}
 
-public struct IntLiteralExpression : LiteralExpression {
+public struct IntLiteralExpression : LiteralExpression, ValueExpression, RValueExpression {
     public typealias ValueType = Int
     
     public let hashValue: Int = nextHashValue()
@@ -148,7 +148,7 @@ public struct IntLiteralExpression : LiteralExpression {
     }
 }
 
-public struct RealLiteralExpression : LiteralExpression {
+public struct RealLiteralExpression : LiteralExpression, ValueExpression, RValueExpression {
     public typealias ValueType = Double
     
     public let hashValue: Int = nextHashValue()
@@ -161,7 +161,7 @@ public struct RealLiteralExpression : LiteralExpression {
     }
 }
 
-public struct BoolLiteralExpression : LiteralExpression {
+public struct BoolLiteralExpression : LiteralExpression, ValueExpression, RValueExpression {
     public typealias ValueType = Bool
     
     public let hashValue: Int = nextHashValue()
@@ -174,7 +174,7 @@ public struct BoolLiteralExpression : LiteralExpression {
     }
 }
 
-public struct StringLiteralExpression : LiteralExpression {
+public struct StringLiteralExpression : LiteralExpression, ValueExpression, RValueExpression {
     public typealias ValueType = String
     
     public let hashValue: Int = nextHashValue()
