@@ -422,6 +422,8 @@ public struct TypeDefExpression : ExportableExpression {
     public let propertyOrder: [String : Int]
     // TODO - Trait conformance
     
+    public let constructorSignatures: [StaticSignatureExpression]
+    
     public let hashValue: Int = nextHashValue()
 }
 
@@ -832,7 +834,12 @@ public class Parser : CompilationPhase {
         
         guard next.type != .RParen else {
             _ = try consume()
-            return TypeDefExpression(name: name, properties: [], propertyOrder: [:])
+            
+            let emptyConstructorName = IdentifierExpression(value: "__init__", grouped: false)
+            
+            let emptyConstructorSignature = StaticSignatureExpression(name: emptyConstructorName, receiverType: name, parameters: [], returnType: name, genericConstraints: nil)
+            
+            return TypeDefExpression (name: name, properties: [], propertyOrder: [:], constructorSignatures: [emptyConstructorSignature])
         }
         
         let pairs = try parsePairs()
@@ -841,7 +848,12 @@ public class Parser : CompilationPhase {
         var order = [String : Int]()
         pairs.enumerated().forEach { order[$0.element.name.value] = $0.offset }
         
-        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order)
+        let defaultConstructorName = IdentifierExpression(value: "__init__", grouped: false)
+        let defaultConstructorSignature = StaticSignatureExpression(name: defaultConstructorName, receiverType: name, parameters: pairs, returnType: name, genericConstraints: nil)
+        
+        // TODO - Optional parameters, default parameters
+        
+        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature])
     }
     
     /// A pair consists of an identifier followed by a type identifier, e.g. i Int

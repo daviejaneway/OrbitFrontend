@@ -192,6 +192,8 @@ class ParserTests: XCTestCase {
         let result = try! parser.parseTypeDef()
         
         XCTAssertEqual("Foo", result.name.value)
+        XCTAssertEqual(1, result.constructorSignatures.count)
+        XCTAssertEqual(0, result.constructorSignatures[0].parameters.count)
     }
     
     func testParseComplexTypeDef1() {
@@ -213,6 +215,9 @@ class ParserTests: XCTestCase {
         
         XCTAssertEqual("y", p2.name.value)
         XCTAssertEqual("Real", p2.type.value)
+        
+        XCTAssertEqual(1, result.constructorSignatures.count)
+        XCTAssertEqual(2, result.constructorSignatures[0].parameters.count)
     }
     
     func testParsePair() {
