@@ -851,6 +851,21 @@ class ParserTests: XCTestCase {
         
         let result2 = try! parser.parseExpression() as! InstanceCallExpression
         XCTAssertEqual("Real.max(2.2,3.3,9.99,5.123).foo().bar(1).baz(99)", result2.dump())
+        
+        // Test constructor calls
+        parser.tokens = lex(source: "Main(1, 2, 3)")
+        
+        result = try! parser.parseExpression() as! StaticCallExpression
+        
+        XCTAssertEqual("Main", result.receiver.value)
+        XCTAssertEqual(3, result.args.count)
+        
+        parser.tokens = lex(source: "Main()")
+        
+        result = try! parser.parseExpression() as! StaticCallExpression
+        
+        XCTAssertEqual("Main", result.receiver.value)
+        XCTAssertEqual(0, result.args.count)
     }
     
     func testParseInstanceCall() {

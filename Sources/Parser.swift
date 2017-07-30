@@ -1125,11 +1125,24 @@ public class Parser : CompilationPhase {
         return expr
     }
     
+    func parseConstructorCall() throws -> Expression {
+        let tid = try parseTypeIdentifier()
+        let args = try parseExpressions()
+        
+        let constructorName = IdentifierExpression(value: "__init__", grouped: true)
+        return StaticCallExpression(grouped: true, receiver: tid, methodName: constructorName, args: args)
+    }
+    
     func parsePrimary() throws -> Expression {
         let next = try peek()
         
         switch next.type {
             case TokenType.TypeIdentifier:
+                // Check for constructor call
+                if let constructorCall = self.attempt(parseFunc: { try self.parseConstructorCall() }) {
+                    return constructorCall
+                }
+                
                 let tid = try parseTypeIdentifier()
                 guard let call = self.attempt(parseFunc: { try self.parseStaticCall(lhs: tid) }) else {
                     // TODO - Are type identifiers values? Can they be passed around as-is, or should they mimic Swift Type.self?
