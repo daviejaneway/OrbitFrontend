@@ -1,8 +1,7 @@
 <p align="center">
-<img src="orbit_logo.png"/>
+<img src="orbit_badge_sml.png"/>
 </p>
-<h1 align="center">The Orbit Programming Language</h1>
-<hr/>
+<h1 align="center" style="font-family: 'orbitron'">The Orbit Programming Language</h1>
 
 ## Frontend
 This project builds a Swift framework that handles lexical & semantic processing of Orbit source files.
@@ -25,9 +24,30 @@ Using the tokens provided by the lexer, the parser attempts to conbine then into
 
 The end result of a parsing pass is an Abstract Syntax Tree. This tree is basis of all further compilation phases.
 
-## Known Issues / Limitations
+## Usage
 
-The parser is a work in progress but is capable of parsing simple programs.
+This library is part of Orbit's bootstrap system and is designed to be comsumed by the [Orbit command line tool](https://github.com/daviejaneway/Orbit). This code will eventually be rewritten in Orbit itself and may become redundant.
 
-- Operator precedence in complex expressions is grouping incorrectly without parentheses.
-- ~~Method calls are not yet recursive, meaning you can only go two levels deep with chained method calls e.g. `a.b().c()` works, `a.b().c().d()` does not.~~ **FIXED**
+However, the library could easily be embedded in other tools (written in Swift/ObjC) to provide lexical/semantic information about Orbit source code, for instance, in an IDE.
+
+### Building
+
+The library uses the Swift Package Manager and should build on any platform where Swift is supported.
+
+``` bash
+git clone https://github.com/daviejaneway/OrbitFrontend.git
+cd OrbitFrontend
+swift build
+```
+
+To run the test suite:
+
+``` bash
+swift test
+```
+
+To use OrbitFrontend in another Swift project, just add the following line to your Pacakge.swift dependencies:
+
+``` swift
+.Package(url: "https://github.com/daviejaneway/OrbitFrontend.git", majorVersion: 0)
+```
