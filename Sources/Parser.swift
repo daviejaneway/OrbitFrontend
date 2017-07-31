@@ -769,18 +769,10 @@ public class Parser : CompilationPhase {
         }
         
         _ = try expect(tokenType: .LBracket)
-        
-        if try peek().type == .LBracket {
-            let elementType = try parseTypeIdentifier() // Recursive list type
-            _ = try expect(tokenType: .RBracket)
-            
-            return ListTypeIdentifierExpression(elementType: elementType)
-        }
-        
-        let tid = try expect(tokenType: .TypeIdentifier)
+        let elementType = try parseTypeIdentifier() // Recursive list type
         _ = try expect(tokenType: .RBracket)
         
-        return TypeIdentifierExpression(value: tid.value, isList: true)
+        return ListTypeIdentifierExpression(elementType: elementType)
     }
     
     func parseTypeIdentifiers() throws -> [TypeIdentifierExpression] {
