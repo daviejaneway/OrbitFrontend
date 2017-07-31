@@ -181,6 +181,15 @@ class ParserTests: XCTestCase {
         
         XCTAssertTrue(result.isList)
         XCTAssertEqual("Bar", result.value)
+        
+        // Recursive lists
+        
+        parser.tokens = lex(source: "[[[Foo]]]")
+        
+        result = try! parser.parseTypeIdentifier()
+        
+        XCTAssertTrue(result is ListTypeIdentifierExpression)
+        XCTAssertTrue((result as! ListTypeIdentifierExpression).elementType is ListTypeIdentifierExpression)
     }
     
     func testParseSimpleTypeDef() {

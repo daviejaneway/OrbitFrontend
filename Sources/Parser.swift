@@ -106,7 +106,7 @@ public struct IdentifierExpression : LValueExpression, RValueExpression, ValueEx
     }
 }
 
-public struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpression {
+public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpression {
     public typealias ValueType = String
     
     public let hashValue: Int = nextHashValue()
@@ -123,6 +123,16 @@ public struct TypeIdentifierExpression : TypedExpression, ValueExpression, RValu
     
     public func dump() -> String {
         return self.grouped ? "(\(self.value))" : self.value
+    }
+}
+
+public class ListTypeIdentifierExpression : TypeIdentifierExpression {
+    public let elementType: TypeIdentifierExpression
+    
+    init(grouped: Bool = false, elementType: TypeIdentifierExpression) {
+        self.elementType = elementType
+        
+        super.init(value: elementType.value, grouped: grouped, isList: true)
     }
 }
 
@@ -759,6 +769,14 @@ public class Parser : CompilationPhase {
         }
         
         _ = try expect(tokenType: .LBracket)
+        
+        if try peek().type == .LBracket {
+            let elementType = try parseTypeIdentifier() // Recursive list type
+            _ = try expect(tokenType: .RBracket)
+            
+            return ListTypeIdentifierExpression(elementType: elementType)
+        }
+        
         let tid = try expect(tokenType: .TypeIdentifier)
         _ = try expect(tokenType: .RBracket)
         
