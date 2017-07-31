@@ -113,12 +113,10 @@ public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValue
     
     public let value: String
     public var grouped: Bool
-    public var isList: Bool = false
     
-    init(value: String, grouped: Bool = false, isList: Bool = false) {
+    init(value: String, grouped: Bool = false) {
         self.value = value
         self.grouped = grouped
-        self.isList = isList
     }
     
     public func dump() -> String {
@@ -132,7 +130,7 @@ public class ListTypeIdentifierExpression : TypeIdentifierExpression {
     init(grouped: Bool = false, elementType: TypeIdentifierExpression) {
         self.elementType = elementType
         
-        super.init(value: elementType.value, grouped: grouped, isList: true)
+        super.init(value: elementType.value, grouped: grouped)
     }
 }
 

@@ -179,7 +179,7 @@ class ParserTests: XCTestCase {
         
         result = try! parser.parseTypeIdentifier()
         
-        XCTAssertTrue(result.isList)
+        XCTAssertTrue(result is ListTypeIdentifierExpression)
         XCTAssertEqual("Bar", result.value)
         
         // Recursive lists
@@ -245,7 +245,7 @@ class ParserTests: XCTestCase {
         result = try! parser.parsePair()
         
         XCTAssertEqual("xs", result.name.value)
-        XCTAssertTrue(result.type.isList)
+        XCTAssertTrue(result.type is ListTypeIdentifierExpression)
         XCTAssertEqual("Int", result.type.value)
     }
     
@@ -469,7 +469,7 @@ class ParserTests: XCTestCase {
         XCTAssertEqual("Int", id4.value)
         XCTAssertEqual("Real", id5.value)
         XCTAssertEqual("String", id6.value)
-        XCTAssertTrue(id6.isList)
+        XCTAssertTrue(id6 is ListTypeIdentifierExpression)
     }
     
     func testOperatorPrecedenceOpposite() {
