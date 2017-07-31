@@ -2,8 +2,8 @@ import Foundation
 import OrbitCompilerUtils
 
 public struct SourcePosition : CustomStringConvertible {
-    var line: Int = 0
-    var character: Int = 0
+    fileprivate(set) public var line: Int = 0
+    fileprivate(set) public var character: Int = 0
     
     public var description: String {
         return "\nError at line: \(line), char: \(character)"
@@ -25,8 +25,8 @@ public extension OrbitError {
 }
 
 public struct TokenType : Equatable {
-    let name: String
-    let pattern: String
+    public let name: String
+    public let pattern: String
     
     static let Real = TokenType(name: "Real", pattern: "[0-9]+\\.[0-9]+")
     static let Int = TokenType(name: "Int", pattern: "[0-9]+")
