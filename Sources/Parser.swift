@@ -182,16 +182,32 @@ public struct BoolLiteralExpression : LiteralExpression, ValueExpression, RValue
     }
 }
 
+public struct CharacterLiteralExpression : LiteralExpression, ValueExpression, RValueExpression {
+    public typealias ValueType = String
+    
+    public let hashValue: Int = nextHashValue()
+    
+    public var grouped: Bool = false
+    public var value: String
+    public let escaped: Bool
+    public let unicodeEscape: Bool
+    
+    public func dump() -> String {
+        return self.value
+    }
+}
+
 public struct StringLiteralExpression : LiteralExpression, ValueExpression, RValueExpression {
     public typealias ValueType = String
     
     public let hashValue: Int = nextHashValue()
     
+    public var grouped: Bool = false
     public let value: String
-    public var grouped: Bool
     
     public func dump() -> String {
-        return self.grouped ? "(\(self.value))" : "\(self.value)"
+        let str = self.value
+        return self.grouped ? "(\(str))" : str
     }
 }
 
@@ -1051,7 +1067,14 @@ public class Parser : CompilationPhase {
         // TODO - within
         // TODO - withs
         
+        //var withs = [String]()
         var next = try peek()
+        
+//        while next.type == .Keyword && next.value == "with" {
+//            _ = try consume()
+//            let importPath = try parse
+//        }
+        
         var exportables: [ExportableExpression] = []
         
         while next.type != .Shelf {
@@ -1186,6 +1209,11 @@ public class Parser : CompilationPhase {
                 guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: r) }) else { return r }
                 return call
             
+            case TokenType.String:
+                let s = try parseStringLiteral()
+                guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: s) }) else { return s }
+                return call
+            
             case TokenType.LBracket:
                 if let l = self.attempt(parseFunc: self.parseListLiteral) {
                     guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: l) }) else { return l }
@@ -1278,6 +1306,26 @@ public class Parser : CompilationPhase {
         let r = try expect(tokenType: .Real)
         
         return RealLiteralExpression(value: Double(r.value)!, grouped: false)
+    }
+    
+    func parseStringInterpolation() throws -> Expression {
+        _ = try expect(tokenType: .Escape)
+        _ = try expect(tokenType: .LParen)
+        let expr = try parseExpression()
+        _ = try expect(tokenType: .RParen)
+        
+        return expr
+    }
+    
+    func parseStringLiteral() throws -> StringLiteralExpression {
+        let tok = try expect(tokenType: .String)
+        
+        var chars = tok.value.characters
+        
+        _ = chars.removeFirst()
+        _ = chars.removeLast()
+        
+        return StringLiteralExpression(grouped: false, value: chars.map { "\($0)" }.joined(separator: ""))
     }
     
 //    func parseBoolLiteral() throws -> BoolLiteralExpression {

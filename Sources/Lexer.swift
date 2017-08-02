@@ -27,9 +27,23 @@ public extension OrbitError {
 public struct TokenType : Equatable {
     public let name: String
     public let pattern: String
+    public let ignoreWhitespace: Bool
+    
+    init(name: String, pattern: String, ignoreWhitespace: Bool = true) {
+        self.name = name
+        self.pattern = pattern
+        self.ignoreWhitespace = ignoreWhitespace
+    }
     
     static let Real = TokenType(name: "Real", pattern: "[0-9]+\\.[0-9]+")
     static let Int = TokenType(name: "Int", pattern: "[0-9]+")
+    
+    static let String = TokenType(name: "String", pattern: "\"(\\\\(n|t|r|0|\")|(\\\\u[a-fA-F0-9]{1,8})|[^\"])*\"")
+    
+    static let DoubleQuote = TokenType(name: "DoubleQuote", pattern: "\"", ignoreWhitespace: true)
+    static let Escape = TokenType(name: "Escape", pattern: "\\\\(\\|n|t|r|0|\")")
+    static let UnicodeEscape = TokenType(name: "UnicodeEscape", pattern: "\\\\u[a-fA-F0-9]{1,8}")
+    
     static let Identifier = TokenType(name: "Identifier", pattern: "[a-z_]+[a-zA-Z0-9_]*")
     static let TypeIdentifier = TokenType(name: "TypeIdentifier", pattern: "[A-Z]+[a-zA-Z0-9_]*")
     static let Colon = TokenType(name: "Colon", pattern: "\\:")
@@ -62,6 +76,8 @@ public struct TokenType : Equatable {
     
     static let base = [
         Whitespace, Real, Int, Keyword,
+        String,
+        //DoubleQuote, Escape, UnicodeEscape,
         Identifier, TypeIdentifier,
         Colon, Comma, Shelf, Dot,
         LParen, RParen,
@@ -151,16 +167,17 @@ public class Lexer : CompilationPhase {
                     
                     self.currentPosition.character += m.characters.count
                     
-                    // Skip whitespace for now
-                    guard tt != .Whitespace else {
-                        // Increment line counter, for better errors
-                        for ch in m.unicodeScalars {
-                            if CharacterSet.newlines.contains(ch) {
-                                self.currentPosition.line += 1
+                    if tt.ignoreWhitespace {
+                        guard tt != .Whitespace else {
+                            // Increment line counter, for better errors
+                            for ch in m.unicodeScalars {
+                                if CharacterSet.newlines.contains(ch) {
+                                    self.currentPosition.line += 1
+                                }
                             }
+                            
+                            break
                         }
-                        
-                        break
                     }
                     
                     tokens.append(Token(type: tt, value: m, position: self.currentPosition))

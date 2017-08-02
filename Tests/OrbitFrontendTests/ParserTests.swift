@@ -26,7 +26,13 @@ class ParserTests: XCTestCase {
     func lex(source: String) -> [Token] {
         let lexer = Lexer()
         
-        return try! lexer.execute(input: source)
+        do {
+            return try lexer.execute(input: source)
+        } catch let ex {
+            print(ex)
+        }
+        
+        return []
     }
     
     func interpretIntLiteralExpression(expression: Expression) throws -> Int {
@@ -1093,4 +1099,38 @@ class ParserTests: XCTestCase {
             
         }
     }
+    
+    func testParseStringLiteral() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "\"abc\"")
+        
+        do {
+            var result = try parser.parseStringLiteral()
+            
+            XCTAssertEqual("abc", result.value)
+            
+            parser.tokens = lex(source: "\"a b c \\(def) 123\"")
+            
+            result = try parser.parseStringLiteral()
+            
+            XCTAssertEqual("a b c \\(def) 123", result.value)
+            
+            parser.tokens = lex(source: "\"Hello, \\u1234\"")
+            
+            result = try parser.parseStringLiteral()
+            
+            XCTAssertEqual("Hello, \\u1234", result.value)
+        } catch let ex {
+            print(ex)
+        }
+    }
+
+//    func testWith() {
+//        let parser = Parser()
+//        
+//        parser.tokens = lex(source: "with \"core.orb\"")
+//        
+//        let result = try parser.parseWith()
+//    }
 }
