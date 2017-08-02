@@ -1130,6 +1130,8 @@ public class Parser : CompilationPhase {
             return call as! StaticCallExpression
         } else if let call = self.attempt(parseFunc: { try self.parseInstanceCall() }) {
             return call as! InstanceCallExpression
+        } else if let debug = self.attempt(parseFunc: { try self.parseDebug() }) {
+            return debug as! DebugExpression
         }
         
         // TODO - We will eventually allow things like defer statements, cases, selects, matches, loops etc
