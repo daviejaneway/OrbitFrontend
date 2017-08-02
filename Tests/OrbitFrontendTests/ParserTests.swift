@@ -1126,6 +1126,22 @@ class ParserTests: XCTestCase {
         }
     }
 
+    func testParseDebug() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "debug \"abc\"")
+        
+        var result = try! parser.parseDebug()
+        
+        XCTAssertTrue(result.string is StringLiteralExpression)
+        
+        parser.tokens = lex(source: "debug abc")
+        
+        result = try! parser.parseDebug()
+        
+        XCTAssertTrue(result.string is IdentifierExpression)
+    }
+    
 //    func testWith() {
 //        let parser = Parser()
 //        

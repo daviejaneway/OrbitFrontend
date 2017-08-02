@@ -211,6 +211,12 @@ public struct StringLiteralExpression : LiteralExpression, ValueExpression, RVal
     }
 }
 
+public struct DebugExpression : Statement {
+    public let hashValue: Int = nextHashValue()
+    
+    public let string: Expression
+}
+
 public struct ListExpression : ValueExpression, RValueExpression {
     public typealias ValueType = [Expression]
     
@@ -1326,6 +1332,13 @@ public class Parser : CompilationPhase {
         _ = chars.removeLast()
         
         return StringLiteralExpression(grouped: false, value: chars.map { "\($0)" }.joined(separator: ""))
+    }
+    
+    func parseDebug() throws -> DebugExpression {
+        _ = try expect(tokenType: .Keyword, requirements: { $0.value == "debug" })
+        let str = try parseExpression()
+        
+        return DebugExpression(string: str)
     }
     
 //    func parseBoolLiteral() throws -> BoolLiteralExpression {
