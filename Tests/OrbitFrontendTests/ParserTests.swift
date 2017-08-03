@@ -1076,7 +1076,7 @@ class ParserTests: XCTestCase {
     
     func testParseAPI() {
         let src =
-        "api Main " +
+        "api Main within __Main__ " +
             "with \"test.orb\" " +
             "with \"test2.orb\" " +
             "(Main) main (argc Int8, argv [String]) ()" +
@@ -1098,6 +1098,7 @@ class ParserTests: XCTestCase {
             XCTAssertTrue((result.body[0] as! APIExpression).importPaths.count == 2)
             XCTAssertEqual("test.orb", (result.body[0] as! APIExpression).importPaths[0].value)
             XCTAssertEqual("test2.orb", (result.body[0] as! APIExpression).importPaths[1].value)
+            XCTAssertEqual("__Main__", (result.body[0] as! APIExpression).within!.value)
         } catch let ex as OrbitError {
             print(ex.message)
         } catch {

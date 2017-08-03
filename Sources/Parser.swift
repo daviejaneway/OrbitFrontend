@@ -505,6 +505,7 @@ public struct APIExpression : TopLevelExpression {
     public let name: TypeIdentifierExpression
     public let body: [Expression]
     public let importPaths: [StringLiteralExpression]
+    public let within: TypeIdentifierExpression?
     
     public let hashValue: Int = nextHashValue()
 }
@@ -1071,14 +1072,20 @@ public class Parser : CompilationPhase {
         try parseKeyword(name: "api")
         let name = try parseTypeIdentifier()
         
-        // TODO - within
-        // TODO - withs
-        
         var withs = [StringLiteralExpression]()
         var next = try peek()
         
+        var within: TypeIdentifierExpression? = nil
+        
+        if next.type == .Keyword && next.value == "within" {
+            _ = try consume()
+            within = try parseTypeIdentifier() // TODO - Allow fully qualified api names, e.g. Orb::Core::Main
+            
+            next = try peek()
+        }
+        
         while next.type == .Keyword && next.value == "with" {
-            _ = try expect(tokenType: .Keyword, requirements: { $0.value == "with" })
+            _ = try consume()
             
             let importPath = try parseStringLiteral()
             
@@ -1099,7 +1106,7 @@ public class Parser : CompilationPhase {
         
         try parseShelf()
         
-        return APIExpression(name: name, body: exportables, importPaths: withs)
+        return APIExpression(name: name, body: exportables, importPaths: withs, within: within)
     }
     
     func parseKeyword(token: Token) throws -> Expression {
