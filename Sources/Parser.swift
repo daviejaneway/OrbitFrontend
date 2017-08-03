@@ -504,6 +504,7 @@ public struct MethodExpression : ExportableExpression {
 public struct APIExpression : TopLevelExpression {
     public let name: TypeIdentifierExpression
     public let body: [Expression]
+    public let importPaths: [StringLiteralExpression]
     
     public let hashValue: Int = nextHashValue()
 }
@@ -1073,13 +1074,18 @@ public class Parser : CompilationPhase {
         // TODO - within
         // TODO - withs
         
-        //var withs = [String]()
+        var withs = [StringLiteralExpression]()
         var next = try peek()
         
-//        while next.type == .Keyword && next.value == "with" {
-//            _ = try consume()
-//            let importPath = try parse
-//        }
+        while next.type == .Keyword && next.value == "with" {
+            _ = try expect(tokenType: .Keyword, requirements: { $0.value == "with" })
+            
+            let importPath = try parseStringLiteral()
+            
+            withs.append(importPath)
+            
+            next = try peek()
+        }
         
         var exportables: [ExportableExpression] = []
         
@@ -1093,7 +1099,7 @@ public class Parser : CompilationPhase {
         
         try parseShelf()
         
-        return APIExpression(name: name, body: exportables)
+        return APIExpression(name: name, body: exportables, importPaths: withs)
     }
     
     func parseKeyword(token: Token) throws -> Expression {
