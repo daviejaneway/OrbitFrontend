@@ -446,7 +446,7 @@ public class Operator : Hashable, Equatable {
     }
 }
 
-protocol AbsoluteNameAware {
+public protocol AbsoluteNameAware {
     mutating func absolutise(absoluteName: String)
 }
 
@@ -460,7 +460,7 @@ public struct TypeDefExpression : ExportableExpression, AbsoluteNameAware {
     
     public let hashValue: Int = nextHashValue()
     
-    func absolutise(absoluteName: String) {
+    public func absolutise(absoluteName: String) {
         name.value = absoluteName
     }
 }
@@ -489,7 +489,7 @@ public struct StaticSignatureExpression : SignatureExpression, AbsoluteNameAware
     public let returnType: TypeIdentifierExpression?
     public let genericConstraints: ConstraintList?
     
-    mutating func absolutise(absoluteName: String) {
+    public mutating func absolutise(absoluteName: String) {
         name.value = absoluteName
     }
 }
@@ -509,7 +509,7 @@ public struct APIExpression : TopLevelExpression, AbsoluteNameAware {
     
     public let hashValue: Int = nextHashValue()
     
-    func absolutise(absoluteName: String) {
+    public func absolutise(absoluteName: String) {
         name.value = absoluteName
     }
 }
