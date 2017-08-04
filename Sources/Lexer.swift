@@ -45,7 +45,7 @@ public struct TokenType : Equatable {
     static let UnicodeEscape = TokenType(name: "UnicodeEscape", pattern: "\\\\u[a-fA-F0-9]{1,8}")
     
     static let Identifier = TokenType(name: "Identifier", pattern: "[a-z_]+[a-zA-Z0-9_]*")
-    static let TypeIdentifier = TokenType(name: "TypeIdentifier", pattern: "[A-Z]+[a-zA-Z0-9_]*")
+    static let TypeIdentifier = TokenType(name: "TypeIdentifier", pattern: "([A-Z]+[a-zA-Z0-9_]*)(::[A-Z]+[a-zA-Z0-9_]*)*")
     static let Colon = TokenType(name: "Colon", pattern: "\\:")
     static let Comma = TokenType(name: "Comma", pattern: "\\,")
     static let Shelf = TokenType(name: "Shelf", pattern: "\\.\\.\\.")

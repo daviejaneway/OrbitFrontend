@@ -188,6 +188,13 @@ class ParserTests: XCTestCase {
         XCTAssertTrue(result is ListTypeIdentifierExpression)
         XCTAssertEqual("Bar", result.value)
         
+        parser.tokens = lex(source: "[Foo::Bar::Baz]")
+        
+        result = try! parser.parseTypeIdentifier()
+        
+        XCTAssertTrue(result is ListTypeIdentifierExpression)
+        XCTAssertEqual("Foo.Bar.Baz", result.value)
+        
         // Recursive lists
         
         parser.tokens = lex(source: "[[[Foo]]]")
@@ -196,6 +203,12 @@ class ParserTests: XCTestCase {
         
         XCTAssertTrue(result is ListTypeIdentifierExpression)
         XCTAssertTrue((result as! ListTypeIdentifierExpression).elementType is ListTypeIdentifierExpression)
+        
+        parser.tokens = lex(source: "Orb::Core::Types::Int")
+        
+        result = try! parser.parseTypeIdentifier()
+        
+        XCTAssertEqual("Orb.Core.Types.Int", result.value)
     }
     
     func testParseSimpleTypeDef() {
@@ -362,7 +375,7 @@ class ParserTests: XCTestCase {
         XCTAssertEqual("Real", id2.value)
         XCTAssertEqual("String", id3.value)
         
-        parser.tokens = lex(source: "Int, Real")
+        parser.tokens = lex(source: "Int, Orb::Core::Types::Real")
         
         result = try! parser.parseTypeIdentifiers()
         
@@ -372,7 +385,7 @@ class ParserTests: XCTestCase {
         let id5 = result[1]
         
         XCTAssertEqual("Int", id4.value)
-        XCTAssertEqual("Real", id5.value)
+        XCTAssertEqual("Orb.Core.Types.Real", id5.value)
         
         parser.tokens = lex(source: "Int")
         
@@ -450,7 +463,7 @@ class ParserTests: XCTestCase {
         
         XCTAssertEqual("Int", id1.value)
         
-        parser.tokens = lex(source: "(Int, Real)")
+        parser.tokens = lex(source: "(Orb::Core::Int, Real)")
         
         result = try! parser.parseTypeIdentifierList()
         
@@ -459,7 +472,7 @@ class ParserTests: XCTestCase {
         let id2 = result[0]
         let id3 = result[1]
         
-        XCTAssertEqual("Int", id2.value)
+        XCTAssertEqual("Orb.Core.Int", id2.value)
         XCTAssertEqual("Real", id3.value)
         
         parser.tokens = lex(source: "(Int, Real, [String])")

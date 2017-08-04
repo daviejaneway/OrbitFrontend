@@ -84,6 +84,14 @@ class OrbitFrontendTests : XCTestCase {
         OrbTestLex(src: "String", expectedTokens: [
             Token(type: .TypeIdentifier, value: "String")
         ])
+        
+        OrbTestLex(src: "Orb::Core", expectedTokens: [
+            Token(type: .TypeIdentifier, value: "Orb::Core")
+        ])
+        
+        OrbTestLex(src: "Orb::Core::Test", expectedTokens: [
+            Token(type: .TypeIdentifier, value: "Orb::Core::Test")
+        ])
     }
     
     func testLexTypeIdentifierMulti() {

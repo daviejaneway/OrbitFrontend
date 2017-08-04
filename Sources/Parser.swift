@@ -791,7 +791,9 @@ public class Parser : CompilationPhase {
         guard next.type == .LBracket else {
             let token = try expect(tokenType: .TypeIdentifier)
             
-            return TypeIdentifierExpression(value: token.value)
+            // e.g. Orb::Core::Types::Int gets translated to Orb.Core.Types.Int
+            // This is for LLVM. We should eventually support custom manglers
+            return TypeIdentifierExpression(value: token.value.replacingOccurrences(of: "::", with: "."))
         }
         
         _ = try expect(tokenType: .LBracket)
