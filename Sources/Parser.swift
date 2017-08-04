@@ -106,10 +106,11 @@ public struct IdentifierExpression : LValueExpression, RValueExpression, ValueEx
     }
 }
 
-public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpression {
+public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValueExpression, AbsoluteNameAware {
     public typealias ValueType = String
     
     public let hashValue: Int = nextHashValue()
+    public var absolutised: Bool = false
     
     fileprivate(set) public var value: String
     public var grouped: Bool
@@ -122,23 +123,47 @@ public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValue
     public func dump() -> String {
         return self.grouped ? "(\(self.value))" : self.value
     }
-}
-
-public class ListTypeIdentifierExpression : TypeIdentifierExpression {
-    public let elementType: TypeIdentifierExpression
     
-    init(grouped: Bool = false, elementType: TypeIdentifierExpression) {
-        self.elementType = elementType
-        
-        super.init(value: elementType.value, grouped: grouped)
+    public func absolutise(absoluteName: String) {
+        if !self.absolutised {
+            self.value = absoluteName
+            self.absolutised = true
+        }
     }
 }
 
-public struct PairExpression : NamedExpression, TypedExpression {
+public class ListTypeIdentifierExpression : TypeIdentifierExpression {
+    private(set) public var elementType: TypeIdentifierExpression
+    
+    init(grouped: Bool = false, elementType: TypeIdentifierExpression) {
+        self.elementType = elementType
+        super.init(value: elementType.value, grouped: grouped)
+    }
+    
+    public override func absolutise(absoluteName: String) {
+        self.elementType.absolutise(absoluteName: absoluteName)
+    }
+}
+
+public class PairExpression : NamedExpression, TypedExpression, AbsoluteNameAware {
     public let name: IdentifierExpression
-    public let type: TypeIdentifierExpression
+    private(set) public var type: TypeIdentifierExpression
+    
+    public var absolutised: Bool = false
     
     public let hashValue: Int = nextHashValue()
+    
+    init(name: IdentifierExpression, type: TypeIdentifierExpression) {
+        self.name = name
+        self.type = type
+    }
+    
+    public func absolutise(absoluteName: String) {
+        if !self.absolutised {
+            self.type.absolutise(absoluteName: absoluteName)
+            self.absolutised = true
+        }
+    }
 }
 
 public protocol LiteralExpression {}
@@ -826,6 +851,7 @@ public class Parser : CompilationPhase {
             
             // e.g. Orb::Core::Types::Int gets translated to Orb.Core.Types.Int
             // This is for LLVM. We should eventually support custom manglers
+            
             return TypeIdentifierExpression(value: token.value.replacingOccurrences(of: "::", with: "."))
         }
         
