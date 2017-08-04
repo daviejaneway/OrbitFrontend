@@ -447,6 +447,8 @@ public class Operator : Hashable, Equatable {
 }
 
 public protocol AbsoluteNameAware {
+    var absolutised: Bool { get set }
+    
     mutating func absolutise(absoluteName: String)
 }
 
@@ -458,10 +460,13 @@ public struct TypeDefExpression : ExportableExpression, AbsoluteNameAware {
     
     public let constructorSignatures: [StaticSignatureExpression]
     
+    public var absolutised: Bool = false
+    
     public let hashValue: Int = nextHashValue()
     
-    public func absolutise(absoluteName: String) {
-        name.value = absoluteName
+    public mutating func absolutise(absoluteName: String) {
+        self.name.value = absoluteName
+        self.absolutised = true
     }
 }
 
@@ -489,8 +494,11 @@ public struct StaticSignatureExpression : SignatureExpression, AbsoluteNameAware
     public let returnType: TypeIdentifierExpression?
     public let genericConstraints: ConstraintList?
     
+    public var absolutised: Bool = false
+    
     public mutating func absolutise(absoluteName: String) {
-        name.value = absoluteName
+        self.name.value = absoluteName
+        self.absolutised = true
     }
 }
 
@@ -506,11 +514,13 @@ public struct APIExpression : TopLevelExpression, AbsoluteNameAware {
     public let body: [Expression]
     public let importPaths: [StringLiteralExpression]
     public let within: TypeIdentifierExpression?
+    public var absolutised: Bool = false
     
     public let hashValue: Int = nextHashValue()
     
-    public func absolutise(absoluteName: String) {
-        name.value = absoluteName
+    public mutating func absolutise(absoluteName: String) {
+        self.name.value = absoluteName
+        self.absolutised = true
     }
 }
 
@@ -875,9 +885,9 @@ public class Parser : CompilationPhase {
             
             let emptyConstructorName = IdentifierExpression(value: "__init__", grouped: false)
             
-            let emptyConstructorSignature = StaticSignatureExpression(name: emptyConstructorName, receiverType: name, parameters: [], returnType: name, genericConstraints: nil)
+            let emptyConstructorSignature = StaticSignatureExpression(name: emptyConstructorName, receiverType: name, parameters: [], returnType: name, genericConstraints: nil, absolutised: false)
             
-            return TypeDefExpression (name: name, properties: [], propertyOrder: [:], constructorSignatures: [emptyConstructorSignature])
+            return TypeDefExpression (name: name, properties: [], propertyOrder: [:], constructorSignatures: [emptyConstructorSignature], absolutised: false)
         }
         
         let pairs = try parsePairs()
@@ -887,11 +897,11 @@ public class Parser : CompilationPhase {
         pairs.enumerated().forEach { order[$0.element.name.value] = $0.offset }
         
         let defaultConstructorName = IdentifierExpression(value: "__init__", grouped: false)
-        let defaultConstructorSignature = StaticSignatureExpression(name: defaultConstructorName, receiverType: name, parameters: pairs, returnType: name, genericConstraints: nil)
+        let defaultConstructorSignature = StaticSignatureExpression(name: defaultConstructorName, receiverType: name, parameters: pairs, returnType: name, genericConstraints: nil, absolutised: false)
         
         // TODO - Optional parameters, default parameters
         
-        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature])
+        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature], absolutised: false)
     }
     
     /// A pair consists of an identifier followed by a type identifier, e.g. i Int
@@ -961,13 +971,13 @@ public class Parser : CompilationPhase {
         let ret = try parseTypeIdentifierList()
         
         guard ret.count > 0 else {
-            return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen)
+            return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen, absolutised: false)
         }
         
         // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
         guard ret.count == 1 else { throw OrbitError.multipleReturns(token: try peek()) }
         
-        return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
+        return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen, absolutised: false)
     }
     
     func parseInstanceSignature() throws -> StaticSignatureExpression {
@@ -985,14 +995,14 @@ public class Parser : CompilationPhase {
         // Instance methods are just sugar for static methods that take an extra "self" parameter.
         // We do the transformation now so that the backend doesn't need to know about instance vs static.
         guard ret.count > 0 else {
-            return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: nil, genericConstraints: gen)
+            return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: nil, genericConstraints: gen, absolutised: false)
             //return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen)
         }
         
         // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
         guard ret.count == 1 else { throw OrbitError.multipleReturns(token: try peek()) }
         
-        return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: ret[0], genericConstraints: gen)
+        return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: ret[0], genericConstraints: gen, absolutised: false)
         //return InstanceSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
     }
     
@@ -1112,7 +1122,7 @@ public class Parser : CompilationPhase {
         
         try parseShelf()
         
-        return APIExpression(name: name, body: exportables, importPaths: withs, within: within)
+        return APIExpression(name: name, body: exportables, importPaths: withs, within: within, absolutised: false)
     }
     
     func parseKeyword(token: Token) throws -> Expression {
