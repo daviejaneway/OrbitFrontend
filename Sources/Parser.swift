@@ -447,7 +447,7 @@ public class Operator : Hashable, Equatable {
 }
 
 public struct TypeDefExpression : ExportableExpression {
-    public let name: TypeIdentifierExpression
+    public var name: TypeIdentifierExpression
     public let properties: [PairExpression]
     public let propertyOrder: [String : Int]
     // TODO - Trait conformance
@@ -475,24 +475,12 @@ public struct StaticSignatureExpression : SignatureExpression {
     
     public let hashValue: Int = nextHashValue()
     
-    public let name: IdentifierExpression
+    public var name: IdentifierExpression
     public let receiverType: TypeIdentifierExpression
     public let parameters: [PairExpression]
     public let returnType: TypeIdentifierExpression?
     public let genericConstraints: ConstraintList?
 }
-
-//public struct InstanceSignatureExpression : SignatureExpression {
-//    public typealias Receiver = PairExpression
-//    
-//    public let hashValue: Int = nextHashValue()
-//    
-//    public let name: IdentifierExpression
-//    public let receiverType: PairExpression
-//    public let parameters: [PairExpression]
-//    public let returnType: TypeIdentifierExpression?
-//    public let genericConstraints: ConstraintList?
-//}
 
 public struct MethodExpression : ExportableExpression {
     public let signature: StaticSignatureExpression
@@ -502,7 +490,7 @@ public struct MethodExpression : ExportableExpression {
 }
 
 public struct APIExpression : TopLevelExpression {
-    public let name: TypeIdentifierExpression
+    public var name: TypeIdentifierExpression
     public let body: [Expression]
     public let importPaths: [StringLiteralExpression]
     public let within: TypeIdentifierExpression?
