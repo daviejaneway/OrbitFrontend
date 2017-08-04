@@ -98,7 +98,7 @@ public struct IdentifierExpression : LValueExpression, RValueExpression, ValueEx
     
     public let hashValue: Int = nextHashValue()
     
-    public let value: String
+    fileprivate(set) public var value: String
     public var grouped: Bool
     
     public func dump() -> String {
@@ -111,7 +111,7 @@ public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValue
     
     public let hashValue: Int = nextHashValue()
     
-    public let value: String
+    fileprivate(set) public var value: String
     public var grouped: Bool
     
     init(value: String, grouped: Bool = false) {
@@ -446,8 +446,12 @@ public class Operator : Hashable, Equatable {
     }
 }
 
-public struct TypeDefExpression : ExportableExpression {
-    public var name: TypeIdentifierExpression
+protocol AbsoluteNameAware {
+    mutating func absolutise(absoluteName: String)
+}
+
+public struct TypeDefExpression : ExportableExpression, AbsoluteNameAware {
+    private(set) public var name: TypeIdentifierExpression
     public let properties: [PairExpression]
     public let propertyOrder: [String : Int]
     // TODO - Trait conformance
@@ -455,6 +459,10 @@ public struct TypeDefExpression : ExportableExpression {
     public let constructorSignatures: [StaticSignatureExpression]
     
     public let hashValue: Int = nextHashValue()
+    
+    func absolutise(absoluteName: String) {
+        name.value = absoluteName
+    }
 }
 
 public protocol YieldingExpression : Expression {
@@ -470,16 +478,20 @@ public protocol SignatureExpression : Expression, YieldingExpression, NamedExpre
     var genericConstraints: ConstraintList? { get }
 }
 
-public struct StaticSignatureExpression : SignatureExpression {
+public struct StaticSignatureExpression : SignatureExpression, AbsoluteNameAware {
     public typealias Receiver = TypeIdentifierExpression
     
     public let hashValue: Int = nextHashValue()
     
-    public var name: IdentifierExpression
+    private(set) public var name: IdentifierExpression
     public let receiverType: TypeIdentifierExpression
     public let parameters: [PairExpression]
     public let returnType: TypeIdentifierExpression?
     public let genericConstraints: ConstraintList?
+    
+    mutating func absolutise(absoluteName: String) {
+        name.value = absoluteName
+    }
 }
 
 public struct MethodExpression : ExportableExpression {
@@ -489,13 +501,17 @@ public struct MethodExpression : ExportableExpression {
     public let hashValue: Int = nextHashValue()
 }
 
-public struct APIExpression : TopLevelExpression {
-    public var name: TypeIdentifierExpression
+public struct APIExpression : TopLevelExpression, AbsoluteNameAware {
+    private(set) public var name: TypeIdentifierExpression
     public let body: [Expression]
     public let importPaths: [StringLiteralExpression]
     public let within: TypeIdentifierExpression?
     
     public let hashValue: Int = nextHashValue()
+    
+    func absolutise(absoluteName: String) {
+        name.value = absoluteName
+    }
 }
 
 public struct ReturnStatement : Statement {
