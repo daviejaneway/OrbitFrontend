@@ -115,9 +115,10 @@ public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValue
     fileprivate(set) public var value: String
     public var grouped: Bool
     
-    init(value: String, grouped: Bool = false) {
+    init(value: String, grouped: Bool = false, absolutised: Bool = false) {
         self.value = value
         self.grouped = grouped
+        self.absolutised = absolutised
     }
     
     public func dump() -> String {
@@ -852,7 +853,10 @@ public class Parser : CompilationPhase {
             // e.g. Orb::Core::Types::Int gets translated to Orb.Core.Types.Int
             // This is for LLVM. We should eventually support custom manglers
             
-            return TypeIdentifierExpression(value: token.value.replacingOccurrences(of: "::", with: "."))
+            // This is pretty hacky but does the job for now
+            let absolute = token.value.contains("::")
+            
+            return TypeIdentifierExpression(value: token.value.replacingOccurrences(of: "::", with: "."), absolutised: absolute)
         }
         
         _ = try expect(tokenType: .LBracket)
