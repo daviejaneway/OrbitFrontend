@@ -93,16 +93,28 @@ public protocol ValueExpression : GroupableExpression {
 public protocol LValueExpression {}
 public protocol RValueExpression {}
 
-public struct IdentifierExpression : LValueExpression, RValueExpression, ValueExpression {
+public class IdentifierExpression : LValueExpression, RValueExpression, ValueExpression, AbsoluteNameAware {
     public typealias ValueType = String
     
     public let hashValue: Int = nextHashValue()
     
     fileprivate(set) public var value: String
-    public var grouped: Bool
+    public var absolutised: Bool = false
+    public var grouped: Bool = false
+    
+    init(value: String) {
+        self.value = value
+    }
     
     public func dump() -> String {
         return self.grouped ? "(\(self.value))" : self.value
+    }
+    
+    public func absolutise(absoluteName: String) {
+        if !self.absolutised {
+            self.value = absoluteName
+            self.absolutised = true
+        }
     }
 }
 
@@ -588,12 +600,12 @@ public struct AssignmentStatement : Statement {
 
 public typealias ArgType = GroupableExpression & RValueExpression
 
-public protocol CallExpression : Statement, RValueExpression {
+public protocol CallExpression : Statement, RValueExpression, AbsoluteNameAware {
     var methodName: IdentifierExpression { get }
     var args: [ArgType] { get }
 }
 
-public struct StaticCallExpression : CallExpression, GroupableExpression {
+public class StaticCallExpression : CallExpression, GroupableExpression {
     public var grouped: Bool = false
     
     public let hashValue: Int = nextHashValue()
@@ -601,13 +613,24 @@ public struct StaticCallExpression : CallExpression, GroupableExpression {
     public let receiver: TypeIdentifierExpression
     public let methodName: IdentifierExpression
     public let args: [ArgType]
+    public var absolutised: Bool = false
+    
+    init(receiver: TypeIdentifierExpression, methodName: IdentifierExpression, args: [ArgType]) {
+        self.receiver = receiver
+        self.methodName = methodName
+        self.args = args
+    }
     
     public func dump() -> String {
         return "\(receiver.dump()).\(methodName.dump())(\(args.map { $0.dump() }.joined(separator: ",")))"
     }
+    
+    public func absolutise(absoluteName: String) {
+        self.methodName.absolutise(absoluteName: absoluteName)
+    }
 }
 
-public struct InstanceCallExpression : CallExpression, GroupableExpression {
+public class InstanceCallExpression : CallExpression, GroupableExpression {
     public var grouped: Bool = false
     
     public let hashValue: Int = nextHashValue()
@@ -615,9 +638,20 @@ public struct InstanceCallExpression : CallExpression, GroupableExpression {
     public let receiver: GroupableExpression
     public let methodName: IdentifierExpression
     public let args: [ArgType]
+    public var absolutised: Bool = false
+    
+    init(receiver: GroupableExpression, methodName: IdentifierExpression, args: [ArgType]) {
+        self.receiver = receiver
+        self.methodName = methodName
+        self.args = args
+    }
     
     public func dump() -> String {
         return "\(receiver.dump()).\(methodName.value)(\(args.map { $0.dump() }.joined(separator: ",")))"
+    }
+    
+    public func absolutise(absoluteName: String) {
+        self.methodName.absolutise(absoluteName: absoluteName)
     }
 }
 
@@ -783,13 +817,13 @@ public class Parser : CompilationPhase {
     func parseIdentifier() throws -> IdentifierExpression {
         let token = try expect(tokenType: .Identifier)
         
-        return IdentifierExpression(value: token.value, grouped: false)
+        return IdentifierExpression(value: token.value)
     }
     
     func parseIdentifier(expectedValue: String) throws -> IdentifierExpression {
         let token = try expect(tokenType: .Identifier, requirements: { $0.value == expectedValue })
         
-        return IdentifierExpression(value: token.value, grouped: false)
+        return IdentifierExpression(value: token.value)
     }
     
     func parseIdentifiers() throws -> [IdentifierExpression] {
@@ -936,7 +970,7 @@ public class Parser : CompilationPhase {
         guard next.type != .RParen else {
             _ = try consume()
             
-            let emptyConstructorName = IdentifierExpression(value: "__init__", grouped: false)
+            let emptyConstructorName = IdentifierExpression(value: "__init__")
             
             let emptyConstructorSignature = StaticSignatureExpression(name: emptyConstructorName, receiverType: name, parameters: [], returnType: name, genericConstraints: nil)
             
@@ -949,7 +983,7 @@ public class Parser : CompilationPhase {
         var order = [String : Int]()
         pairs.enumerated().forEach { order[$0.element.name.value] = $0.offset }
         
-        let defaultConstructorName = IdentifierExpression(value: "__init__", grouped: false)
+        let defaultConstructorName = IdentifierExpression(value: "__init__")
         let defaultConstructorSignature = StaticSignatureExpression(name: defaultConstructorName, receiverType: name, parameters: pairs, returnType: name, genericConstraints: nil)
         
         // TODO - Optional parameters, default parameters
@@ -1260,8 +1294,8 @@ public class Parser : CompilationPhase {
         let tid = try parseTypeIdentifier()
         let args = try parseExpressions()
         
-        let constructorName = IdentifierExpression(value: "__init__", grouped: true)
-        return StaticCallExpression(grouped: true, receiver: tid, methodName: constructorName, args: args)
+        let constructorName = IdentifierExpression(value: "__init__")
+        return StaticCallExpression(receiver: tid, methodName: constructorName, args: args)
     }
     
     func parsePrimary() throws -> Expression {
@@ -1507,7 +1541,7 @@ public class Parser : CompilationPhase {
         
         let rhs = try parseCallRhs()
         
-        let call = StaticCallExpression(grouped: true, receiver: receiver as! TypeIdentifierExpression, methodName: rhs.method, args: rhs.args)
+        let call = StaticCallExpression(receiver: receiver as! TypeIdentifierExpression, methodName: rhs.method, args: rhs.args)
         
         guard try self.hasNext() && peek().type == .Dot else { return call }
         
@@ -1546,7 +1580,7 @@ public class Parser : CompilationPhase {
         if rhs.isPropertyAccess {
            call = PropertyAccessExpression(grouped: true, receiver: receiver, propertyName: rhs.method)
         } else {
-            call = InstanceCallExpression(grouped: true, receiver: receiver as! GroupableExpression, methodName: rhs.method, args: rhs.args)
+            call = InstanceCallExpression(receiver: receiver as! GroupableExpression, methodName: rhs.method, args: rhs.args)
         }
         
         guard try self.hasNext() && peek().type == .Dot else { return call }
