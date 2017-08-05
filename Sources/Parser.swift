@@ -564,7 +564,8 @@ public struct MethodExpression : ExportableExpression {
 
 public class APIExpression : TopLevelExpression, AbsoluteNameAware {
     private(set) public var name: TypeIdentifierExpression
-    public let body: [Expression]
+    private(set) public var body: [Expression]
+    
     public let importPaths: [StringLiteralExpression]
     public let within: TypeIdentifierExpression?
     
@@ -582,6 +583,11 @@ public class APIExpression : TopLevelExpression, AbsoluteNameAware {
     public func absolutise(absoluteName: String) {
         self.name.value = absoluteName
         self.absolutised = true
+    }
+    
+    public func importAll(fromAPI: APIExpression) {
+        let importables = fromAPI.body.filter { $0 is TypeDefExpression || $0 is MethodExpression }
+        self.body.insert(contentsOf: importables, at: 0)
     }
 }
 
