@@ -573,6 +573,13 @@ public class APIExpression : TopLevelExpression, AbsoluteNameAware {
     
     public let hashValue: Int = nextHashValue()
     
+    public init(name: String, body: [Expression]) {
+        self.name = TypeIdentifierExpression(value: name)
+        self.body = body
+        self.importPaths = []
+        self.within = nil
+    }
+    
     init(name: TypeIdentifierExpression, body: [Expression], importPaths: [StringLiteralExpression], within: TypeIdentifierExpression?) {
         self.name = name
         self.body = body
