@@ -686,11 +686,11 @@ public struct IndexAccessExpression : GroupableExpression, RValueExpression {
     
     public let hashValue: Int = nextHashValue()
     
-    public let receiver: GroupableExpression
-    public let indices: [GroupableExpression]
+    public let receiver: Expression
+    public let indices: [Expression]
     
     public func dump() -> String {
-        return "\(receiver.dump())[\(indices.map { $0.dump() }.joined(separator: ","))]"
+        return "\((receiver as! GroupableExpression).dump())[\(indices.map { ($0 as! GroupableExpression).dump() }.joined(separator: ","))]"
     }
 }
 
@@ -1326,9 +1326,11 @@ public class Parser : CompilationPhase {
                     // TODO - Are type identifiers values? Can they be passed around as-is, or should they mimic Swift Type.self?
                     return tid
                 }
+                
                 return call
             
             case TokenType.Identifier:
+                
                 let id = try parseIdentifier()
                 
                 guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: id) }) else { return id }
@@ -1336,16 +1338,19 @@ public class Parser : CompilationPhase {
             
             case TokenType.Int:
                 let i = try parseIntLiteral()
+                
                 guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: i) }) else { return i }
                 return call
             
             case TokenType.Real:
                 let r = try parseRealLiteral()
+                
                 guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: r) }) else { return r }
                 return call
             
             case TokenType.String:
                 let s = try parseStringLiteral()
+                
                 guard let call = self.attempt(parseFunc: { try self.parseInstanceCall(lhs: s) }) else { return s }
                 return call
             
@@ -1408,7 +1413,11 @@ public class Parser : CompilationPhase {
     }
     
     func parseExpression() throws -> Expression {
-        let node = try parsePrimary()
+        var node = try parsePrimary()
+        
+        if let idx = self.attempt(parseFunc: { try self.parseIndexAccess(receiver: node) }) {
+            node = idx
+        }
         
         guard try self.hasNext() && peek().type == .Operator else { return node }
         
@@ -1609,6 +1618,12 @@ public class Parser : CompilationPhase {
         let propertyName = try parseIdentifier()
         
         return PropertyAccessExpression(grouped: false, receiver: receiver, propertyName: propertyName)
+    }
+    
+    func parseIndexAccess(receiver: Expression) throws -> IndexAccessExpression {
+        let indices = try parseExpressions(openParen: .LBracket, closeParen: .RBracket)
+        
+        return IndexAccessExpression(grouped: false, receiver: receiver, indices: indices)
     }
     
     func parseGenericExpression() throws -> GenericExpression {

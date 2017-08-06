@@ -932,9 +932,16 @@ class ParserTests: XCTestCase {
         
         // Test index access
         
+        parser.tokens = lex(source: "foo.bar()[0]")
+        
+        var idx = try! parser.parseExpression() as! IndexAccessExpression
+        
+        XCTAssert(idx.receiver is InstanceCallExpression)
+        XCTAssertEqual(1, idx.indices.count)
+        
         parser.tokens = lex(source: "foo[0, foo[1]]")
         
-        let idx = try! parser.parseExpression() as! IndexAccessExpression
+        idx = try! parser.parseExpression() as! IndexAccessExpression
         
         XCTAssertEqual("foo", (idx.receiver as! IdentifierExpression).value)
         XCTAssertEqual(0, (idx.indices[0] as! IntLiteralExpression).value)
