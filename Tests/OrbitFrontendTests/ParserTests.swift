@@ -1171,6 +1171,14 @@ class ParserTests: XCTestCase {
         
         result = try! parser.parseDebug()
         
+        XCTAssertTrue(result.debuggable is IndexAccessExpression)
+        XCTAssertTrue((result.debuggable as! IndexAccessExpression).receiver is PropertyAccessExpression)
+        
+        parser.tokens = lex(source: "debug self[0].argv")
+        
+        result = try! parser.parseDebug()
+        
         XCTAssertTrue(result.debuggable is PropertyAccessExpression)
+        XCTAssertTrue((result.debuggable as! PropertyAccessExpression).receiver is IndexAccessExpression)
     }
 }

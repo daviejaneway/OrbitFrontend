@@ -1466,10 +1466,20 @@ public class Parser : CompilationPhase {
     func parseExpression() throws -> Expression {
         var node = try parsePrimary()
         
+        // This is ugly
         if let prop = self.attempt(parseFunc: { try self.parsePropertyAccess(receiver: node) }) {
             node = prop
+            
+            if let idx = self.attempt(parseFunc: { try self.parseIndexAccess(receiver: node) }) {
+                node = idx
+            }
+            
         } else if let idx = self.attempt(parseFunc: { try self.parseIndexAccess(receiver: node) }) {
             node = idx
+            
+            if let prop = self.attempt(parseFunc: { try self.parsePropertyAccess(receiver: node) }) {
+                node = prop
+            }
         }
         
         guard try self.hasNext() && peek().type == .Operator else { return node }
