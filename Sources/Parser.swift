@@ -1251,14 +1251,18 @@ public class Parser : CompilationPhase {
     }
     
     func parseStatement() throws -> Statement {
-        if let assignment = self.attempt(parseFunc: self.parseAssignment) {
+        // Order of grammar rules matters here.
+        // For instance, `debug 123` would match the assignment & instance call rules.
+        // Keep this in mind when adding/changing this method
+        
+        if let debug = self.attempt(parseFunc: { try self.parseDebug() }) {
+            return debug as! DebugExpression
+        } else if let assignment = self.attempt(parseFunc: self.parseAssignment) {
             return assignment as! AssignmentStatement
         } else if let call = self.attempt(parseFunc: { try self.parseStaticCall() }) {
             return call as! StaticCallExpression
         } else if let call = self.attempt(parseFunc: { try self.parseInstanceCall() }) {
             return call as! InstanceCallExpression
-        } else if let debug = self.attempt(parseFunc: { try self.parseDebug() }) {
-            return debug as! DebugExpression
         }
         
         // TODO - We will eventually allow things like defer statements, cases, selects, matches, loops etc
@@ -1415,7 +1419,9 @@ public class Parser : CompilationPhase {
     func parseExpression() throws -> Expression {
         var node = try parsePrimary()
         
-        if let idx = self.attempt(parseFunc: { try self.parseIndexAccess(receiver: node) }) {
+        if let prop = self.attempt(parseFunc: { try self.parsePropertyAccess(receiver: node) }) {
+            node = prop
+        } else if let idx = self.attempt(parseFunc: { try self.parseIndexAccess(receiver: node) }) {
             node = idx
         }
         
@@ -1610,9 +1616,7 @@ public class Parser : CompilationPhase {
         return try parseInstanceCall(lhs: call)
     }
     
-    func parsePropertyAccess() throws -> PropertyAccessExpression {
-        let receiver = try parseExpression()
-        
+    func parsePropertyAccess(receiver: Expression) throws -> PropertyAccessExpression {
         _ = try self.expect(tokenType: .Dot)
         
         let propertyName = try parseIdentifier()

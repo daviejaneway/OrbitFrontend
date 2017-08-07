@@ -1166,6 +1166,12 @@ class ParserTests: XCTestCase {
         result = try! parser.parseDebug()
         
         XCTAssertTrue(result.string is IdentifierExpression)
+        
+        parser.tokens = lex(source: "debug self.argv[0]")
+        
+        result = try! parser.parseDebug()
+        
+        XCTAssertTrue(result.string is PropertyAccessExpression)
     }
     
 //    func testWith() {
