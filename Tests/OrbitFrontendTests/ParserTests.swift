@@ -1159,26 +1159,18 @@ class ParserTests: XCTestCase {
         
         var result = try! parser.parseDebug()
         
-        XCTAssertTrue(result.string is StringLiteralExpression)
+        XCTAssertTrue(result.debuggable is StringLiteralExpression)
         
         parser.tokens = lex(source: "debug abc")
         
         result = try! parser.parseDebug()
         
-        XCTAssertTrue(result.string is IdentifierExpression)
+        XCTAssertTrue(result.debuggable is IdentifierExpression)
         
         parser.tokens = lex(source: "debug self.argv[0]")
         
         result = try! parser.parseDebug()
         
-        XCTAssertTrue(result.string is PropertyAccessExpression)
+        XCTAssertTrue(result.debuggable is PropertyAccessExpression)
     }
-    
-//    func testWith() {
-//        let parser = Parser()
-//        
-//        parser.tokens = lex(source: "with \"core.orb\"")
-//        
-//        let result = try parser.parseWith()
-//    }
 }

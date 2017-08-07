@@ -61,6 +61,7 @@ func nextHashValue() -> Int {
 
 public protocol Expression {
     var hashValue: Int { get }
+    var startToken: Token { get }
 }
 
 public protocol TopLevelExpression : Expression {}
@@ -68,6 +69,7 @@ public protocol Statement : Expression {}
 
 public struct RootExpression : Expression {
     public var body: [TopLevelExpression] = []
+    public var startToken: Token
     
     public let hashValue: Int = nextHashValue()
 }
@@ -102,8 +104,11 @@ public class IdentifierExpression : LValueExpression, RValueExpression, ValueExp
     public var absolutised: Bool = false
     public var grouped: Bool = false
     
-    init(value: String) {
+    public let startToken: Token
+    
+    init(value: String, startToken: Token) {
         self.value = value
+        self.startToken = startToken
     }
     
     public func dump() -> String {
@@ -125,12 +130,14 @@ public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValue
     public var absolutised: Bool = false
     
     fileprivate(set) public var value: String
+    public let startToken: Token
     public var grouped: Bool
     
-    init(value: String, grouped: Bool = false, absolutised: Bool = false) {
+    init(value: String, grouped: Bool = false, absolutised: Bool = false, startToken: Token) {
         self.value = value
         self.grouped = grouped
         self.absolutised = absolutised
+        self.startToken = startToken
     }
     
     public func dump() -> String {
@@ -148,9 +155,9 @@ public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValue
 public class ListTypeIdentifierExpression : TypeIdentifierExpression {
     private(set) public var elementType: TypeIdentifierExpression
     
-    init(grouped: Bool = false, elementType: TypeIdentifierExpression) {
+    init(grouped: Bool = false, elementType: TypeIdentifierExpression, startToken: Token) {
         self.elementType = elementType
-        super.init(value: elementType.value, grouped: grouped)
+        super.init(value: elementType.value, grouped: grouped, startToken: startToken)
     }
     
     public override func absolutise(absoluteName: String) {
@@ -161,14 +168,16 @@ public class ListTypeIdentifierExpression : TypeIdentifierExpression {
 public class PairExpression : NamedExpression, TypedExpression, AbsoluteNameAware {
     public let name: IdentifierExpression
     private(set) public var type: TypeIdentifierExpression
+    public let startToken: Token
     
     public var absolutised: Bool = false
     
     public let hashValue: Int = nextHashValue()
     
-    init(name: IdentifierExpression, type: TypeIdentifierExpression) {
+    init(name: IdentifierExpression, type: TypeIdentifierExpression, startToken: Token) {
         self.name = name
         self.type = type
+        self.startToken = startToken
     }
     
     public func absolutise(absoluteName: String) {
@@ -188,6 +197,7 @@ public struct IntLiteralExpression : LiteralExpression, ValueExpression, RValueE
     
     public let value: Int
     public var grouped: Bool
+    public let startToken: Token
     
     public func dump() -> String {
         return self.grouped ? "(\(self.value))" : "\(self.value)"
@@ -201,6 +211,7 @@ public struct RealLiteralExpression : LiteralExpression, ValueExpression, RValue
     
     public let value: Double
     public var grouped: Bool
+    public let startToken: Token
     
     public func dump() -> String {
         return self.grouped ? "(\(self.value))" : "\(self.value)"
@@ -214,6 +225,7 @@ public struct BoolLiteralExpression : LiteralExpression, ValueExpression, RValue
     
     public let value: Bool
     public var grouped: Bool
+    public let startToken: Token
     
     public func dump() -> String {
         return self.grouped ? "(\(self.value))" : "\(self.value)"
@@ -229,6 +241,7 @@ public struct CharacterLiteralExpression : LiteralExpression, ValueExpression, R
     public var value: String
     public let escaped: Bool
     public let unicodeEscape: Bool
+    public let startToken: Token
     
     public func dump() -> String {
         return self.value
@@ -242,6 +255,7 @@ public struct StringLiteralExpression : LiteralExpression, ValueExpression, RVal
     
     public var grouped: Bool = false
     public let value: String
+    public let startToken: Token
     
     public func dump() -> String {
         let str = self.value
@@ -252,7 +266,8 @@ public struct StringLiteralExpression : LiteralExpression, ValueExpression, RVal
 public struct DebugExpression : Statement {
     public let hashValue: Int = nextHashValue()
     
-    public let string: Expression
+    public let debuggable: Expression
+    public let startToken: Token
 }
 
 public struct ListExpression : ValueExpression, RValueExpression {
@@ -262,6 +277,7 @@ public struct ListExpression : ValueExpression, RValueExpression {
     
     public let value: [Expression]
     public var grouped: Bool = false
+    public let startToken: Token
     
     public func dump() -> String {
         return "[\(value.map { ($0 as! GroupableExpression).dump() }.joined(separator: ","))]"
@@ -275,6 +291,7 @@ public struct MapEntryExpression : ValueExpression {
     
     public let value: ValueType
     public var grouped: Bool
+    public let startToken: Token
     
     public func dump() -> String {
         return "(\((value.key as! GroupableExpression).dump()):\((value.value as! GroupableExpression).dump()))"
@@ -288,6 +305,7 @@ public struct MapExpression : ValueExpression, RValueExpression {
     
     public let value: ValueType
     public var grouped: Bool
+    public let startToken: Token
     
     public func dump() -> String {
         return "[\(value.map { $0.dump() }.joined(separator: ","))]"
@@ -301,6 +319,7 @@ public struct TupleLiteralExpression : ValueExpression, RValueExpression {
     
     public let value: ValueType
     public var grouped = false
+    public let startToken: Token
     
     public func dump() -> String {
         return "(\(value.map { ($0 as! GroupableExpression).dump() }.joined(separator: ",")))"
@@ -316,6 +335,7 @@ public struct GenericExpression : ValueExpression {
     
     public let value: ValueType
     public var grouped: Bool = false
+    public let startToken: Token
     
     public func dump() -> String {
         return "<\(value.dump())>"
@@ -329,6 +349,7 @@ public struct ConstraintList : ValueExpression {
     
     public let value: ValueType
     public var grouped: Bool = false
+    public let startToken: Token
     
     public func dump() -> String {
         return "<\(value.map { $0.dump() }.joined(separator: ","))>"
@@ -499,14 +520,16 @@ public class TypeDefExpression : ExportableExpression, AbsoluteNameAware {
     public let constructorSignatures: [StaticSignatureExpression]
     
     public var absolutised: Bool = false
+    public let startToken: Token
     
     public let hashValue: Int = nextHashValue()
     
-    init(name: TypeIdentifierExpression, properties: [PairExpression], propertyOrder: [String : Int], constructorSignatures: [StaticSignatureExpression]) {
+    init(name: TypeIdentifierExpression, properties: [PairExpression], propertyOrder: [String : Int], constructorSignatures: [StaticSignatureExpression], startToken: Token) {
         self.name = name
         self.properties = properties
         self.propertyOrder = propertyOrder
         self.constructorSignatures = constructorSignatures
+        self.startToken = startToken
     }
     
     public func absolutise(absoluteName: String) {
@@ -538,15 +561,17 @@ public class StaticSignatureExpression : SignatureExpression, AbsoluteNameAware 
     public let parameters: [PairExpression]
     public let returnType: TypeIdentifierExpression?
     public let genericConstraints: ConstraintList?
+    public let startToken: Token
     
     public var absolutised: Bool = false
     
-    init(name: IdentifierExpression, receiverType: TypeIdentifierExpression, parameters: [PairExpression], returnType: TypeIdentifierExpression?, genericConstraints: ConstraintList?) {
+    init(name: IdentifierExpression, receiverType: TypeIdentifierExpression, parameters: [PairExpression], returnType: TypeIdentifierExpression?, genericConstraints: ConstraintList?, startToken: Token) {
         self.name = name
         self.receiverType = receiverType
         self.parameters = parameters
         self.returnType = returnType
         self.genericConstraints = genericConstraints
+        self.startToken = startToken
     }
     
     public func absolutise(absoluteName: String) {
@@ -558,6 +583,7 @@ public class StaticSignatureExpression : SignatureExpression, AbsoluteNameAware 
 public struct MethodExpression : ExportableExpression {
     public let signature: StaticSignatureExpression
     public let body: [Statement]
+    public let startToken: Token
     
     public let hashValue: Int = nextHashValue()
 }
@@ -568,23 +594,26 @@ public class APIExpression : TopLevelExpression, AbsoluteNameAware {
     
     public let importPaths: [StringLiteralExpression]
     public let within: TypeIdentifierExpression?
+    public let startToken: Token
     
     public var absolutised: Bool = false
     
     public let hashValue: Int = nextHashValue()
     
-    public init(name: String, body: [Expression]) {
-        self.name = TypeIdentifierExpression(value: name)
+    public init(name: String, body: [Expression], startToken: Token) {
+        self.name = TypeIdentifierExpression(value: name, startToken: startToken)
         self.body = body
         self.importPaths = []
         self.within = nil
+        self.startToken = startToken
     }
     
-    init(name: TypeIdentifierExpression, body: [Expression], importPaths: [StringLiteralExpression], within: TypeIdentifierExpression?) {
+    init(name: TypeIdentifierExpression, body: [Expression], importPaths: [StringLiteralExpression], within: TypeIdentifierExpression?, startToken: Token) {
         self.name = name
         self.body = body
         self.importPaths = importPaths
         self.within = within
+        self.startToken = startToken
     }
     
     public func absolutise(absoluteName: String) {
@@ -600,6 +629,7 @@ public class APIExpression : TopLevelExpression, AbsoluteNameAware {
 
 public struct ReturnStatement : Statement {
     public let value: Expression
+    public let startToken: Token
     
     public let hashValue: Int = nextHashValue()
 }
@@ -607,6 +637,7 @@ public struct ReturnStatement : Statement {
 public struct AssignmentStatement : Statement {
     public let name: IdentifierExpression
     public let value: Expression
+    public let startToken: Token
     
     public let hashValue: Int = nextHashValue()
 }
@@ -627,11 +658,13 @@ public class StaticCallExpression : CallExpression, GroupableExpression {
     public let methodName: IdentifierExpression
     public let args: [ArgType]
     public var absolutised: Bool = false
+    public let startToken: Token
     
-    init(receiver: TypeIdentifierExpression, methodName: IdentifierExpression, args: [ArgType]) {
+    init(receiver: TypeIdentifierExpression, methodName: IdentifierExpression, args: [ArgType], startToken: Token) {
         self.receiver = receiver
         self.methodName = methodName
         self.args = args
+        self.startToken = startToken
     }
     
     public func dump() -> String {
@@ -652,11 +685,13 @@ public class InstanceCallExpression : CallExpression, GroupableExpression {
     public let methodName: IdentifierExpression
     public let args: [ArgType]
     public var absolutised: Bool = false
+    public let startToken: Token
     
-    init(receiver: GroupableExpression, methodName: IdentifierExpression, args: [ArgType]) {
+    init(receiver: GroupableExpression, methodName: IdentifierExpression, args: [ArgType], startToken: Token) {
         self.receiver = receiver
         self.methodName = methodName
         self.args = args
+        self.startToken = startToken
     }
     
     public func dump() -> String {
@@ -675,6 +710,7 @@ public struct PropertyAccessExpression : GroupableExpression, RValueExpression {
     
     public let receiver: Expression
     public let propertyName: IdentifierExpression
+    public let startToken: Token
     
     public func dump() -> String {
         return ""
@@ -688,6 +724,7 @@ public struct IndexAccessExpression : GroupableExpression, RValueExpression {
     
     public let receiver: Expression
     public let indices: [Expression]
+    public let startToken: Token
     
     public func dump() -> String {
         return "\((receiver as! GroupableExpression).dump())[\(indices.map { ($0 as! GroupableExpression).dump() }.joined(separator: ","))]"
@@ -698,6 +735,7 @@ public struct UnaryExpression : ValueExpression, RValueExpression {
     public let value: GroupableExpression
     public let op: Operator
     public var grouped: Bool
+    public let startToken: Token
     
     public let hashValue: Int = nextHashValue()
     
@@ -716,16 +754,18 @@ public struct BinaryExpression : ValueExpression, RValueExpression {
     public let left: GroupableExpression
     public var right: GroupableExpression
     public let op: Operator
+    public let startToken: Token
     
     /// if a binary expression is grouped, all operator precedence is ignored
     public var grouped = false
     
-    init(left: GroupableExpression, right: GroupableExpression, op: Operator, grouped: Bool = false) {
+    init(left: GroupableExpression, right: GroupableExpression, op: Operator, grouped: Bool = false, startToken: Token) {
         self.left = left
         self.right = right
         self.op = op
         self.grouped = grouped
         self.value = (left: left, right: right)
+        self.startToken = startToken
     }
     
     public func dump() -> String {
@@ -830,13 +870,13 @@ public class Parser : CompilationPhase {
     func parseIdentifier() throws -> IdentifierExpression {
         let token = try expect(tokenType: .Identifier)
         
-        return IdentifierExpression(value: token.value)
+        return IdentifierExpression(value: token.value, startToken: token)
     }
     
     func parseIdentifier(expectedValue: String) throws -> IdentifierExpression {
         let token = try expect(tokenType: .Identifier, requirements: { $0.value == expectedValue })
         
-        return IdentifierExpression(value: token.value)
+        return IdentifierExpression(value: token.value, startToken: token)
     }
     
     func parseIdentifiers() throws -> [IdentifierExpression] {
@@ -903,14 +943,14 @@ public class Parser : CompilationPhase {
             // This is pretty hacky but does the job for now
             let absolute = token.value.contains("::")
             
-            return TypeIdentifierExpression(value: token.value.replacingOccurrences(of: "::", with: "."), absolutised: absolute)
+            return TypeIdentifierExpression(value: token.value.replacingOccurrences(of: "::", with: "."), absolutised: absolute, startToken: next)
         }
         
         _ = try expect(tokenType: .LBracket)
         let elementType = try parseTypeIdentifier() // Recursive list type
         _ = try expect(tokenType: .RBracket)
         
-        return ListTypeIdentifierExpression(elementType: elementType)
+        return ListTypeIdentifierExpression(elementType: elementType, startToken: next)
     }
     
     func parseTypeIdentifiers() throws -> [TypeIdentifierExpression] {
@@ -983,11 +1023,11 @@ public class Parser : CompilationPhase {
         guard next.type != .RParen else {
             _ = try consume()
             
-            let emptyConstructorName = IdentifierExpression(value: "__init__")
+            let emptyConstructorName = IdentifierExpression(value: "__init__", startToken: next)
             
-            let emptyConstructorSignature = StaticSignatureExpression(name: emptyConstructorName, receiverType: name, parameters: [], returnType: name, genericConstraints: nil)
+            let emptyConstructorSignature = StaticSignatureExpression(name: emptyConstructorName, receiverType: name, parameters: [], returnType: name, genericConstraints: nil, startToken: next)
             
-            return TypeDefExpression (name: name, properties: [], propertyOrder: [:], constructorSignatures: [emptyConstructorSignature])
+            return TypeDefExpression (name: name, properties: [], propertyOrder: [:], constructorSignatures: [emptyConstructorSignature], startToken: next)
         }
         
         let pairs = try parsePairs()
@@ -996,20 +1036,21 @@ public class Parser : CompilationPhase {
         var order = [String : Int]()
         pairs.enumerated().forEach { order[$0.element.name.value] = $0.offset }
         
-        let defaultConstructorName = IdentifierExpression(value: "__init__")
-        let defaultConstructorSignature = StaticSignatureExpression(name: defaultConstructorName, receiverType: name, parameters: pairs, returnType: name, genericConstraints: nil)
+        let defaultConstructorName = IdentifierExpression(value: "__init__", startToken: next)
+        let defaultConstructorSignature = StaticSignatureExpression(name: defaultConstructorName, receiverType: name, parameters: pairs, returnType: name, genericConstraints: nil, startToken: next)
         
         // TODO - Optional parameters, default parameters
         
-        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature])
+        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature], startToken: next)
     }
     
     /// A pair consists of an identifier followed by a type identifier, e.g. i Int
     func parsePair() throws -> PairExpression {
+        let start = try peek()
         let name = try parseIdentifier()
         let type = try parseTypeIdentifier()
         
-        return PairExpression(name: name, type: type)
+        return PairExpression(name: name, type: type, startToken: start)
     }
     
     func parsePairs() throws -> [PairExpression] {
@@ -1061,6 +1102,7 @@ public class Parser : CompilationPhase {
     }
     
     func parseStaticSignature() throws -> StaticSignatureExpression {
+        let next = try peek()
         let receiver = try parseTypeIdentifierList()
         
         guard receiver.count == 1 else { throw OrbitError.multipleReceivers(token: try peek()) }
@@ -1071,16 +1113,17 @@ public class Parser : CompilationPhase {
         let ret = try parseTypeIdentifierList()
         
         guard ret.count > 0 else {
-            return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen)
+            return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: nil, genericConstraints: gen, startToken: next)
         }
         
         // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
         guard ret.count == 1 else { throw OrbitError.multipleReturns(token: try peek()) }
         
-        return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen)
+        return StaticSignatureExpression(name: name, receiverType: receiver[0], parameters: args, returnType: ret[0], genericConstraints: gen, startToken: next)
     }
     
     func parseInstanceSignature() throws -> StaticSignatureExpression {
+        let next = try peek()
         let receiver = try parsePairList()
         
         guard receiver.count == 1 else { throw OrbitError.multipleReceivers(token: try peek()) }
@@ -1095,13 +1138,13 @@ public class Parser : CompilationPhase {
         // Instance methods are just sugar for static methods that take an extra "self" parameter.
         // We do the transformation now so that the backend doesn't need to know about instance vs static.
         guard ret.count > 0 else {
-            return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: nil, genericConstraints: gen)
+            return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: nil, genericConstraints: gen, startToken: next)
         }
         
         // TODO - Multiple return types should be sugar for returning a tuple of those types (saves typing an extra pair of parens)
         guard ret.count == 1 else { throw OrbitError.multipleReturns(token: try peek()) }
         
-        return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: ret[0], genericConstraints: gen)
+        return StaticSignatureExpression(name: name, receiverType: receiver[0].type, parameters: args, returnType: ret[0], genericConstraints: gen, startToken: next)
     }
     
     func parseSignature() throws -> StaticSignatureExpression {
@@ -1127,11 +1170,12 @@ public class Parser : CompilationPhase {
         let signature = try parseSignature()
         
         var next = try peek()
+        let start = next
         
         guard next.type != .Shelf else {
             _ = try consume()
             
-            return MethodExpression(signature: signature, body: [])
+            return MethodExpression(signature: signature, body: [], startToken: next)
         }
         
         var body = [Statement]()
@@ -1144,19 +1188,19 @@ public class Parser : CompilationPhase {
             hasReturn = true
         } else {
             while next.type != .Shelf {
+                guard !hasReturn else {
+                    throw OrbitError(message: "Code after return statement is dead")
+                }
+                
                 let expr = try parseStatement()
                 
                 body.append(expr)
                 
-                next = try peek()
-                
-                if next.type == .Keyword && next.value == "return" {
-                    let ret = try parseReturn()
-                    
-                    body.append(ret)
+                if expr is ReturnStatement {
                     hasReturn = true
-                    break
                 }
+                
+                next = try peek()
             }
         }
         
@@ -1168,7 +1212,7 @@ public class Parser : CompilationPhase {
             throw OrbitError(message: "Superfluous return statement for method \(signature.name.value)")
         }
         
-        return MethodExpression(signature: signature, body: body)
+        return MethodExpression(signature: signature, body: body, startToken: start)
     }
     
     func parseExportable(token: Token) throws -> ExportableExpression {
@@ -1220,7 +1264,7 @@ public class Parser : CompilationPhase {
         
         try parseShelf()
         
-        return APIExpression(name: name, body: exportables, importPaths: withs, within: within)
+        return APIExpression(name: name, body: exportables, importPaths: withs, within: within, startToken: firstToken)
     }
     
     func parseKeyword(token: Token) throws -> Expression {
@@ -1257,6 +1301,8 @@ public class Parser : CompilationPhase {
         
         if let debug = self.attempt(parseFunc: { try self.parseDebug() }) {
             return debug as! DebugExpression
+        } else if let ret = self.attempt(parseFunc: { try self.parseReturn() }) {
+            return ret as! ReturnStatement
         } else if let assignment = self.attempt(parseFunc: self.parseAssignment) {
             return assignment as! AssignmentStatement
         } else if let call = self.attempt(parseFunc: { try self.parseStaticCall() }) {
@@ -1308,11 +1354,12 @@ public class Parser : CompilationPhase {
     }
     
     func parseConstructorCall() throws -> Expression {
+        let next = try peek()
         let tid = try parseTypeIdentifier()
         let args = try parseExpressions()
         
-        let constructorName = IdentifierExpression(value: "__init__")
-        return StaticCallExpression(receiver: tid, methodName: constructorName, args: args)
+        let constructorName = IdentifierExpression(value: "__init__", startToken: next)
+        return StaticCallExpression(receiver: tid, methodName: constructorName, args: args, startToken: next)
     }
     
     func parsePrimary() throws -> Expression {
@@ -1394,13 +1441,13 @@ public class Parser : CompilationPhase {
             var rhs = try parsePrimary()
             
             guard self.hasNext() else {
-                return BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true)
+                return BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true, startToken: node.startToken)
             }
             
             let next = try peek()
             
             if next.type != .Operator {
-                return BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true)
+                return BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true, startToken: node.startToken)
             }
             
             let nextOp = try parseOperator(position: .Infix)
@@ -1411,7 +1458,7 @@ public class Parser : CompilationPhase {
                 rhs = try parseBinaryOp(node: rhs, currentOperator: nextOp)
             }
             
-            lhs = BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true)
+            lhs = BinaryExpression(left: lhs as! GroupableExpression, right: rhs as! GroupableExpression, op: op, grouped: true, startToken: node.startToken)
             op = nextOp
         }
     }
@@ -1436,7 +1483,7 @@ public class Parser : CompilationPhase {
         
         let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Prefix, token: opToken)
         
-        return UnaryExpression(value: value as! GroupableExpression, op: op, grouped: true)
+        return UnaryExpression(value: value as! GroupableExpression, op: op, grouped: true, startToken: opToken)
     }
     
     // LValue meaning anything that can legally be on the left hand side of an assignment.
@@ -1449,13 +1496,13 @@ public class Parser : CompilationPhase {
     func parseIntLiteral() throws -> IntLiteralExpression {
         let i = try expect(tokenType: .Int)
         
-        return IntLiteralExpression(value: Int(i.value)!, grouped: false)
+        return IntLiteralExpression(value: Int(i.value)!, grouped: false, startToken: i)
     }
     
     func parseRealLiteral() throws -> RealLiteralExpression {
         let r = try expect(tokenType: .Real)
         
-        return RealLiteralExpression(value: Double(r.value)!, grouped: false)
+        return RealLiteralExpression(value: Double(r.value)!, grouped: false, startToken: r)
     }
     
     func parseStringInterpolation() throws -> Expression {
@@ -1475,14 +1522,14 @@ public class Parser : CompilationPhase {
         _ = chars.removeFirst()
         _ = chars.removeLast()
         
-        return StringLiteralExpression(grouped: false, value: chars.map { "\($0)" }.joined(separator: ""))
+        return StringLiteralExpression(grouped: false, value: chars.map { "\($0)" }.joined(separator: ""), startToken: tok)
     }
     
     func parseDebug() throws -> DebugExpression {
-        _ = try expect(tokenType: .Keyword, requirements: { $0.value == "debug" })
+        let tok = try expect(tokenType: .Keyword, requirements: { $0.value == "debug" })
         let str = try parseExpression()
         
-        return DebugExpression(string: str)
+        return DebugExpression(debuggable: str, startToken: tok)
     }
     
 //    func parseBoolLiteral() throws -> BoolLiteralExpression {
@@ -1490,21 +1537,23 @@ public class Parser : CompilationPhase {
 //    }
 
     func parseListLiteral() throws -> ListExpression {
+        let next = try peek()
         let elements = try parseExpressions(openParen: .LBracket, closeParen: .RBracket)
         
-        return ListExpression(value: elements, grouped: true)
+        return ListExpression(value: elements, grouped: true, startToken: next)
     }
     
     func parseMapEntry() throws -> MapEntryExpression {
+        let next = try peek()
         let key = try parseExpression()
         _ = try expect(tokenType: .Colon)
         let value = try parseExpression()
         
-        return MapEntryExpression(value: (key: key, value: value), grouped: true)
+        return MapEntryExpression(value: (key: key, value: value), grouped: true, startToken: next)
     }
     
     func parseMapLiteral() throws -> MapExpression {
-        _ = try expect(tokenType: .LBracket)
+        let start = try expect(tokenType: .LBracket)
         
         var entries: [MapEntryExpression] = []
         
@@ -1523,22 +1572,23 @@ public class Parser : CompilationPhase {
         
         _ = try expect(tokenType: .RBracket)
         
-        return MapExpression(value: entries, grouped: true)
+        return MapExpression(value: entries, grouped: true, startToken: start)
     }
     
     func parseReturn() throws -> ReturnStatement {
-        _ = try expect(tokenType: .Keyword, requirements: { $0.value == "return" })
+        let start = try expect(tokenType: .Keyword, requirements: { $0.value == "return" })
         let value = try parseExpression()
         
-        return ReturnStatement(value: value)
+        return ReturnStatement(value: value, startToken: start)
     }
     
     func parseAssignment() throws -> AssignmentStatement {
+        let next = try peek()
         let lhs = try parseIdentifier()
         _ = try expect(tokenType: .Assignment)
         let rhs = try parseExpression()
         
-        return AssignmentStatement(name: lhs, value: rhs)
+        return AssignmentStatement(name: lhs, value: rhs, startToken: next)
     }
     
     func parseCallRhs() throws -> (method: IdentifierExpression, args: [ArgType], isPropertyAccess: Bool, isIndexAccess: Bool) {
@@ -1569,7 +1619,7 @@ public class Parser : CompilationPhase {
         
         let rhs = try parseCallRhs()
         
-        let call = StaticCallExpression(receiver: receiver as! TypeIdentifierExpression, methodName: rhs.method, args: rhs.args)
+        let call = StaticCallExpression(receiver: receiver as! TypeIdentifierExpression, methodName: rhs.method, args: rhs.args, startToken: receiver.startToken)
         
         guard try self.hasNext() && peek().type == .Dot else { return call }
         
@@ -1596,7 +1646,7 @@ public class Parser : CompilationPhase {
             
             let idx = try parseExpressions(openParen: .LBracket, closeParen: .RBracket)
             
-            return IndexAccessExpression(grouped: true, receiver: receiver as! GroupableExpression, indices: idx)
+            return IndexAccessExpression(grouped: true, receiver: receiver as! GroupableExpression, indices: idx, startToken: receiver.startToken)
         }
         
         guard try self.hasNext() && peek().type == .Dot else { return receiver }
@@ -1606,9 +1656,9 @@ public class Parser : CompilationPhase {
         var call: Expression
         
         if rhs.isPropertyAccess {
-           call = PropertyAccessExpression(grouped: true, receiver: receiver, propertyName: rhs.method)
+           call = PropertyAccessExpression(grouped: true, receiver: receiver, propertyName: rhs.method, startToken: receiver.startToken)
         } else {
-            call = InstanceCallExpression(receiver: receiver as! GroupableExpression, methodName: rhs.method, args: rhs.args)
+            call = InstanceCallExpression(receiver: receiver as! GroupableExpression, methodName: rhs.method, args: rhs.args, startToken: receiver.startToken)
         }
         
         guard try self.hasNext() && peek().type == .Dot else { return call }
@@ -1617,28 +1667,28 @@ public class Parser : CompilationPhase {
     }
     
     func parsePropertyAccess(receiver: Expression) throws -> PropertyAccessExpression {
-        _ = try self.expect(tokenType: .Dot)
+        let start = try self.expect(tokenType: .Dot)
         
         let propertyName = try parseIdentifier()
         
-        return PropertyAccessExpression(grouped: false, receiver: receiver, propertyName: propertyName)
+        return PropertyAccessExpression(grouped: false, receiver: receiver, propertyName: propertyName, startToken: start)
     }
     
     func parseIndexAccess(receiver: Expression) throws -> IndexAccessExpression {
         let indices = try parseExpressions(openParen: .LBracket, closeParen: .RBracket)
         
-        return IndexAccessExpression(grouped: false, receiver: receiver, indices: indices)
+        return IndexAccessExpression(grouped: false, receiver: receiver, indices: indices, startToken: receiver.startToken)
     }
     
     func parseGenericExpression() throws -> GenericExpression {
         // TODO - Fully featured type constraints and, eventually, value constraints
         let tid = try parseTypeIdentifier()
         
-        return GenericExpression(value: tid, grouped: true)
+        return GenericExpression(value: tid, grouped: true, startToken: tid.startToken)
     }
     
     func parseTypeConstraints() throws -> ConstraintList {
-        _ = try expect(tokenType: .LAngle)
+        let start = try expect(tokenType: .LAngle)
         
         var constraints: [GenericExpression] = []
         
@@ -1660,7 +1710,7 @@ public class Parser : CompilationPhase {
         
         _ = try expect(tokenType: .RAngle)
         
-        return ConstraintList(value: constraints, grouped: true)
+        return ConstraintList(value: constraints, grouped: true, startToken: start)
     }
     
     func parse(token: Token) throws -> Expression {
@@ -1679,7 +1729,7 @@ public class Parser : CompilationPhase {
         
         self.tokens = input
         
-        var root = RootExpression()
+        var root = RootExpression(body: [], startToken: try peek())
         
         while self.tokens.count > 0 {
             let token = try consume()
