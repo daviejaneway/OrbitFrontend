@@ -52,6 +52,10 @@ class OrbitFrontendTests : XCTestCase {
         OrbTestLex(src: "return", expectedTokens: [
             Token(type: .Keyword, value: "return")
         ])
+        
+        OrbTestLex(src: "trait", expectedTokens: [
+            Token(type: .Keyword, value: "trait")
+        ])
     }
     
     func testLexIdentifier() {

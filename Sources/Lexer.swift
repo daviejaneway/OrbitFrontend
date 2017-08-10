@@ -51,7 +51,7 @@ public struct TokenType : Equatable {
     static let Shelf = TokenType(name: "Shelf", pattern: "\\.\\.\\.")
     static let Dot = TokenType(name: "Dot", pattern: "\\.")
     
-    static let Keyword = TokenType(name: "Keyword", pattern: "(api|type|return|debug|within|with)")
+    static let Keyword = TokenType(name: "Keyword", pattern: "(api|type|return|debug|within|with|trait)")
     
     static let LParen = TokenType(name: "LParen", pattern: "\\(")
     static let RParen = TokenType(name: "RParen", pattern: "\\)")

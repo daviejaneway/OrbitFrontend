@@ -515,7 +515,7 @@ public class TypeDefExpression : ExportableExpression, AbsoluteNameAware {
     private(set) public var name: TypeIdentifierExpression
     public let properties: [PairExpression]
     public let propertyOrder: [String : Int]
-    // TODO - Trait conformance
+    public let adoptedTraits: [TypeIdentifierExpression]
     
     public let constructorSignatures: [StaticSignatureExpression]
     
@@ -524,11 +524,33 @@ public class TypeDefExpression : ExportableExpression, AbsoluteNameAware {
     
     public let hashValue: Int = nextHashValue()
     
-    init(name: TypeIdentifierExpression, properties: [PairExpression], propertyOrder: [String : Int], constructorSignatures: [StaticSignatureExpression], startToken: Token) {
+    init(name: TypeIdentifierExpression, properties: [PairExpression], propertyOrder: [String : Int], constructorSignatures: [StaticSignatureExpression], adoptedTraits: [TypeIdentifierExpression] = [], startToken: Token) {
         self.name = name
         self.properties = properties
         self.propertyOrder = propertyOrder
         self.constructorSignatures = constructorSignatures
+        self.adoptedTraits = adoptedTraits
+        self.startToken = startToken
+    }
+    
+    public func absolutise(absoluteName: String) {
+        self.name.value = absoluteName
+        self.absolutised = true
+    }
+}
+
+public class TraitDefExpression : ExportableExpression, AbsoluteNameAware {
+    private(set) public var name: TypeIdentifierExpression
+    public let properties: [PairExpression]
+    
+    public var absolutised: Bool = false
+    public let startToken: Token
+    
+    public let hashValue: Int = nextHashValue()
+    
+    init(name: TypeIdentifierExpression, properties: [PairExpression], startToken: Token) {
+        self.name = name
+        self.properties = properties
         self.startToken = startToken
     }
     
@@ -931,7 +953,6 @@ public class Parser : CompilationPhase {
     }
     
     func parseTypeIdentifier() throws -> TypeIdentifierExpression {
-        // TODO - Allow fully qualified types, i.e. Orb::Core::Int
         let next = try peek()
         
         guard next.type == .LBracket else {
@@ -1013,7 +1034,7 @@ public class Parser : CompilationPhase {
     }
     
     func parseTypeDef() throws -> TypeDefExpression {
-        _ = try expect(tokenType: .Keyword, requirements: { $0.value == "type" })
+        let start = try expect(tokenType: .Keyword, requirements: { $0.value == "type" })
         
         let name = try parseTypeIdentifier()
         _ = try expect(tokenType: .LParen)
@@ -1027,7 +1048,7 @@ public class Parser : CompilationPhase {
             
             let emptyConstructorSignature = StaticSignatureExpression(name: emptyConstructorName, receiverType: name, parameters: [], returnType: name, genericConstraints: nil, startToken: next)
             
-            return TypeDefExpression (name: name, properties: [], propertyOrder: [:], constructorSignatures: [emptyConstructorSignature], startToken: next)
+            return TypeDefExpression (name: name, properties: [], propertyOrder: [:], constructorSignatures: [emptyConstructorSignature], startToken: start)
         }
         
         let pairs = try parsePairs()
@@ -1041,7 +1062,30 @@ public class Parser : CompilationPhase {
         
         // TODO - Optional parameters, default parameters
         
-        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature], startToken: next)
+        guard try self.hasNext() && peek().type == .Colon else {
+            // Does not conform to any traits
+            return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature], startToken: start)
+        }
+        
+        _ = try consume()
+        
+        // This type declares trait conformance
+        let traits = try parseTypeIdentifiers()
+        
+        return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature], adoptedTraits: traits, startToken: start)
+    }
+    
+    func parseTraitDef() throws -> TraitDefExpression {
+        // TODO - Trait defs can take a block which should contain only method signatures.
+        // Implementation of these signatures are required by any conforming type.
+        let start = try expect(tokenType: .Keyword, requirements: { $0.value == "trait" })
+        
+        let name = try parseTypeIdentifier()
+        _ = try expect(tokenType: .LParen)
+        let properties = try parsePairs()
+        _ = try expect(tokenType: .RParen)
+        
+        return TraitDefExpression(name: name, properties: properties, startToken: start)
     }
     
     /// A pair consists of an identifier followed by a type identifier, e.g. i Int

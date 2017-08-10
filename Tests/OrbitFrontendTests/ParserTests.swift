@@ -230,7 +230,7 @@ class ParserTests: XCTestCase {
         
         parser.tokens = tokens
         
-        let result = try! parser.parseTypeDef()
+        var result = try! parser.parseTypeDef()
         
         XCTAssertEqual("Foo", result.name.value)
         XCTAssertEqual(2, result.properties.count)
@@ -246,6 +246,24 @@ class ParserTests: XCTestCase {
         
         XCTAssertEqual(1, result.constructorSignatures.count)
         XCTAssertEqual(2, result.constructorSignatures[0].parameters.count)
+        
+        parser.tokens = lex(source: "type A(x Int) : TraitA")
+        
+        result = try! parser.parseTypeDef()
+        
+        XCTAssertEqual(1, result.adoptedTraits.count)
+        
+        parser.tokens = lex(source: "type A(x Int) : TraitA, TraitB")
+        
+        result = try! parser.parseTypeDef()
+        
+        XCTAssertEqual(2, result.adoptedTraits.count)
+        
+        parser.tokens = lex(source: "type A(x Int) : TraitA, TraitB, TraitC")
+        
+        result = try! parser.parseTypeDef()
+        
+        XCTAssertEqual(3, result.adoptedTraits.count)
     }
     
     func testParsePair() {
@@ -1180,5 +1198,16 @@ class ParserTests: XCTestCase {
         
         XCTAssertTrue(result.debuggable is PropertyAccessExpression)
         XCTAssertTrue((result.debuggable as! PropertyAccessExpression).receiver is IndexAccessExpression)
+    }
+    
+    func testSimpleTraitDef() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "trait IntWrapper(x Int)")
+        
+        var result = try! parser.parseTraitDef()
+        
+        XCTAssertEqual("IntWrapper", result.name.value)
+        XCTAssertEqual(1, result.properties.count)
     }
 }
