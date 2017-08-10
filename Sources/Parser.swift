@@ -1037,28 +1037,13 @@ public class Parser : CompilationPhase {
         let start = try expect(tokenType: .Keyword, requirements: { $0.value == "type" })
         
         let name = try parseTypeIdentifier()
-        _ = try expect(tokenType: .LParen)
-        
-        let next = try peek()
-        
-        guard next.type != .RParen else {
-            _ = try consume()
-            
-            let emptyConstructorName = IdentifierExpression(value: "__init__", startToken: next)
-            
-            let emptyConstructorSignature = StaticSignatureExpression(name: emptyConstructorName, receiverType: name, parameters: [], returnType: name, genericConstraints: nil, startToken: next)
-            
-            return TypeDefExpression (name: name, properties: [], propertyOrder: [:], constructorSignatures: [emptyConstructorSignature], startToken: start)
-        }
-        
-        let pairs = try parsePairs()
-        _ = try expect(tokenType: .RParen)
+        let pairs = try parsePairList()
         
         var order = [String : Int]()
         pairs.enumerated().forEach { order[$0.element.name.value] = $0.offset }
         
-        let defaultConstructorName = IdentifierExpression(value: "__init__", startToken: next)
-        let defaultConstructorSignature = StaticSignatureExpression(name: defaultConstructorName, receiverType: name, parameters: pairs, returnType: name, genericConstraints: nil, startToken: next)
+        let defaultConstructorName = IdentifierExpression(value: "__init__", startToken: start)
+        let defaultConstructorSignature = StaticSignatureExpression(name: defaultConstructorName, receiverType: name, parameters: pairs, returnType: name, genericConstraints: nil, startToken: start)
         
         // TODO - Optional parameters, default parameters
         
