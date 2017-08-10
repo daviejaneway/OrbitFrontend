@@ -1203,9 +1203,16 @@ class ParserTests: XCTestCase {
     func testSimpleTraitDef() {
         let parser = Parser()
         
-        parser.tokens = lex(source: "trait IntWrapper(x Int)")
+        parser.tokens = lex(source: "trait IntWrapper()")
         
         var result = try! parser.parseTraitDef()
+        
+        XCTAssertEqual("IntWrapper", result.name.value)
+        XCTAssertEqual(0, result.properties.count)
+        
+        parser.tokens = lex(source: "trait IntWrapper(x Int)")
+        
+        result = try! parser.parseTraitDef()
         
         XCTAssertEqual("IntWrapper", result.name.value)
         XCTAssertEqual(1, result.properties.count)

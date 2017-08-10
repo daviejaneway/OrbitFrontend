@@ -1081,9 +1081,7 @@ public class Parser : CompilationPhase {
         let start = try expect(tokenType: .Keyword, requirements: { $0.value == "trait" })
         
         let name = try parseTypeIdentifier()
-        _ = try expect(tokenType: .LParen)
-        let properties = try parsePairs()
-        _ = try expect(tokenType: .RParen)
+        let properties = try parsePairList()
         
         return TraitDefExpression(name: name, properties: properties, startToken: start)
     }
