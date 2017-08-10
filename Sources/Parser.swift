@@ -1261,6 +1261,7 @@ public class Parser : CompilationPhase {
     
     func parseExportable(token: Token) throws -> ExportableExpression {
         switch (token.type, token.value) {
+            case (TokenType.Keyword, "trait"): return try parseTraitDef()
             case (TokenType.Keyword, "type"): return try parseTypeDef()
             case (TokenType.LParen, _): return try parseMethod()
             
