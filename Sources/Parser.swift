@@ -587,7 +587,7 @@ public class StaticSignatureExpression : SignatureExpression, AbsoluteNameAware 
     
     public var absolutised: Bool = false
     
-    init(name: IdentifierExpression, receiverType: TypeIdentifierExpression, parameters: [PairExpression], returnType: TypeIdentifierExpression?, genericConstraints: ConstraintList?, startToken: Token) {
+    public init(name: IdentifierExpression, receiverType: TypeIdentifierExpression, parameters: [PairExpression], returnType: TypeIdentifierExpression?, genericConstraints: ConstraintList?, startToken: Token) {
         self.name = name
         self.receiverType = receiverType
         self.parameters = parameters
