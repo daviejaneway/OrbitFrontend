@@ -106,7 +106,7 @@ public class IdentifierExpression : LValueExpression, RValueExpression, ValueExp
     
     public let startToken: Token
     
-    init(value: String, startToken: Token) {
+    public init(value: String, startToken: Token) {
         self.value = value
         self.startToken = startToken
     }
@@ -133,7 +133,7 @@ public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValue
     public let startToken: Token
     public var grouped: Bool
     
-    init(value: String, grouped: Bool = false, absolutised: Bool = false, startToken: Token) {
+    public init(value: String, grouped: Bool = false, absolutised: Bool = false, startToken: Token) {
         self.value = value
         self.grouped = grouped
         self.absolutised = absolutised
@@ -155,7 +155,7 @@ public class TypeIdentifierExpression : TypedExpression, ValueExpression, RValue
 public class ListTypeIdentifierExpression : TypeIdentifierExpression {
     private(set) public var elementType: TypeIdentifierExpression
     
-    init(grouped: Bool = false, elementType: TypeIdentifierExpression, startToken: Token) {
+    public init(grouped: Bool = false, elementType: TypeIdentifierExpression, startToken: Token) {
         self.elementType = elementType
         super.init(value: elementType.value, grouped: grouped, startToken: startToken)
     }
@@ -174,7 +174,7 @@ public class PairExpression : NamedExpression, TypedExpression, AbsoluteNameAwar
     
     public let hashValue: Int = nextHashValue()
     
-    init(name: IdentifierExpression, type: TypeIdentifierExpression, startToken: Token) {
+    public init(name: IdentifierExpression, type: TypeIdentifierExpression, startToken: Token) {
         self.name = name
         self.type = type
         self.startToken = startToken
