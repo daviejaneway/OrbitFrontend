@@ -584,6 +584,7 @@ public class StaticSignatureExpression : SignatureExpression, AbsoluteNameAware 
     public let returnType: TypeIdentifierExpression?
     public let genericConstraints: ConstraintList?
     public let startToken: Token
+    public let relativeName: String
     
     public var absolutised: Bool = false
     
@@ -594,6 +595,7 @@ public class StaticSignatureExpression : SignatureExpression, AbsoluteNameAware 
         self.returnType = returnType
         self.genericConstraints = genericConstraints
         self.startToken = startToken
+        self.relativeName = name.value
     }
     
     public func absolutise(absoluteName: String) {
