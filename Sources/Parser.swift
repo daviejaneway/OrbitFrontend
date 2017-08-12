@@ -608,6 +608,12 @@ public struct MethodExpression : ExportableExpression {
     public let startToken: Token
     
     public let hashValue: Int = nextHashValue()
+    
+    public init(signature: StaticSignatureExpression, body: [Statement], startToken: Token) {
+        self.signature = signature
+        self.body = body
+        self.startToken = startToken
+    }
 }
 
 public class APIExpression : TopLevelExpression, AbsoluteNameAware {
