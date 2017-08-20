@@ -541,17 +541,20 @@ public class TypeDefExpression : ExportableExpression, AbsoluteNameAware {
 
 public class TraitDefExpression : ExportableExpression, AbsoluteNameAware {
     private(set) public var name: TypeIdentifierExpression
+    
     public let properties: [PairExpression]
+    public let signatures: [Expression]
     
     public var absolutised: Bool = false
     public let startToken: Token
     
     public let hashValue: Int = nextHashValue()
     
-    init(name: TypeIdentifierExpression, properties: [PairExpression], startToken: Token) {
+    init(name: TypeIdentifierExpression, properties: [PairExpression], signatures: [Expression], startToken: Token) {
         self.name = name
         self.properties = properties
         self.startToken = startToken
+        self.signatures = signatures
     }
     
     public func absolutise(absoluteName: String) {
@@ -1068,6 +1071,25 @@ public class Parser : CompilationPhase {
         return TypeDefExpression(name: name, properties: pairs, propertyOrder: order, constructorSignatures: [defaultConstructorSignature], adoptedTraits: traits, startToken: start)
     }
     
+    func parseSignatureBlock() throws -> [StaticSignatureExpression] {
+        _ = try expect(tokenType: .LBrace)
+        
+        var next = try peek()
+        var signatures = [StaticSignatureExpression]()
+        
+        while next.type != .RBrace {
+            let signature = try parseSignature()
+            
+            signatures.append(signature)
+            
+            next = try peek()
+        }
+        
+        _ = try expect(tokenType: .RBrace)
+        
+        return signatures
+    }
+    
     func parseTraitDef() throws -> TraitDefExpression {
         // TODO - Trait defs can take a block which should contain only method signatures.
         // Implementation of these signatures are required by any conforming type.
@@ -1076,7 +1098,17 @@ public class Parser : CompilationPhase {
         let name = try parseTypeIdentifier()
         let properties = try parsePairList()
         
-        return TraitDefExpression(name: name, properties: properties, startToken: start)
+        guard hasNext() else {
+            return TraitDefExpression(name: name, properties: properties, signatures: [], startToken: start)
+        }
+        
+        let next = try peek()
+        
+        // Parse signatures
+        
+        let signatures = (next.type == .LBrace) ? try parseSignatureBlock() : []
+        
+        return TraitDefExpression(name: name, properties: properties, signatures: signatures, startToken: start)
     }
     
     /// A pair consists of an identifier followed by a type identifier, e.g. i Int
@@ -1201,53 +1233,47 @@ public class Parser : CompilationPhase {
         throw OrbitError.unexpectedToken(token: next)
     }
     
-    func parseMethod() throws -> ExportableExpression {
-        let signature = try parseSignature()
-        
+    func parseBlock(expectedReturnType: String?) throws -> [Statement] {
+        _ = try expect(tokenType: .LBrace)
         var next = try peek()
-        let start = next
-        
-        guard next.type != .Shelf else {
-            _ = try consume()
-            
-            return MethodExpression(signature: signature, body: [], startToken: next)
-        }
-        
-        var body = [Statement]()
+        var block = [Statement]()
         var hasReturn = false
         
-        if next.type == .Keyword && next.value == "return" {
-            let ret = try parseReturn()
-            
-            body.append(ret)
-            hasReturn = true
-        } else {
-            while next.type != .Shelf {
-                guard !hasReturn else {
-                    throw OrbitError(message: "Code after return statement is dead")
-                }
+        while next.type != .RBrace {
+            if next.type == .Keyword && next.value == "return" {
+                let ret = try parseReturn()
+                
+                block.append(ret)
+                
+                hasReturn = true
+            } else {
+                guard !hasReturn else { throw OrbitError(message: "Code after return statement is dead") }
                 
                 let expr = try parseStatement()
                 
-                body.append(expr)
-                
-                if expr is ReturnStatement {
-                    hasReturn = true
-                }
-                
-                next = try peek()
+                block.append(expr)
             }
+            
+            next = try peek()
         }
         
-        _ = try expect(tokenType: .Shelf)
+        _ = try expect(tokenType: .RBrace)
         
-        if let ret = signature.returnType {
-            guard hasReturn else { throw OrbitError(message: "Method \(signature.name.value) must return a value of type \(ret.value)") }
-        } else if hasReturn {
-            throw OrbitError(message: "Superfluous return statement for method \(signature.name.value)")
+        if (expectedReturnType != nil) && !hasReturn {
+            throw OrbitError(message: "Expected block to return a value of type '\(expectedReturnType!)'")
+        } else if expectedReturnType == nil && hasReturn {
+            throw OrbitError(message: "Superfluous return statement in block")
         }
         
-        return MethodExpression(signature: signature, body: body, startToken: start)
+        return block
+    }
+    
+    func parseMethod() throws -> ExportableExpression {
+        let signature = try parseSignature()
+        
+        let block = try parseBlock(expectedReturnType: signature.returnType?.value)
+        
+        return MethodExpression(signature: signature, body: block, startToken: signature.startToken)
     }
     
     func parseExportable(token: Token) throws -> ExportableExpression {
@@ -1258,6 +1284,24 @@ public class Parser : CompilationPhase {
             
             default: throw OrbitError.unexpectedToken(token: token)
         }
+    }
+    
+    func parseTopLevelBlock() throws -> [ExportableExpression] {
+        _ = try expect(tokenType: .LBrace)
+        
+        var next = try peek()
+        var exportables = [ExportableExpression]()
+        while next.type != .RBrace {
+            let expr = try parseExportable(token: next)
+            
+            exportables.append(expr)
+            
+            next = try peek()
+        }
+        
+        _ = try expect(tokenType: .RBrace)
+        
+        return exportables
     }
     
     func parseAPI(firstToken: Token) throws -> APIExpression {
@@ -1288,17 +1332,7 @@ public class Parser : CompilationPhase {
             next = try peek()
         }
         
-        var exportables: [ExportableExpression] = []
-        
-        while next.type != .Shelf {
-            let expr = try parseExportable(token: next)
-            
-            exportables.append(expr)
-            
-            next = try peek()
-        }
-        
-        try parseShelf()
+        let exportables = try parseTopLevelBlock()
         
         return APIExpression(name: name, body: exportables, importPaths: withs, within: within, startToken: firstToken)
     }

@@ -123,7 +123,7 @@ class ParserTests: XCTestCase {
     }
     
     func testParseSimpleAPI() {
-        let tokens = lex(source: "api Test ...")
+        let tokens = lex(source: "api Test {}")
         let parser = Parser()
         
         do {
@@ -138,7 +138,7 @@ class ParserTests: XCTestCase {
     }
     
     func testParseAPIWithSimpleTypeDef() {
-        let tokens = lex(source: "api Test type Foo() ...")
+        let tokens = lex(source: "api Test { type Foo() }")
         let parser = Parser()
         
         do {
@@ -1099,19 +1099,19 @@ class ParserTests: XCTestCase {
     func testParseMethod() {
         let parser = Parser()
         
-        parser.tokens = lex(source: "(self Int) power<T> (x T, y T) (T)" +
+        parser.tokens = lex(source: "(self Int) power<T> (x T, y T) (T) {" +
             "   z = x ** y" +
             "   return z" +
-            "...")
+            "}")
         
         let result = try! parser.parseMethod() as! MethodExpression
         
         XCTAssertEqual(2, result.body.count)
         
-        parser.tokens = lex(source: "(Int) power<T> (x T, y T) (T)" +
+        parser.tokens = lex(source: "(Int) power<T> (x T, y T) (T) {" +
             "   z = x ** y" +
             "   return z" +
-            "...")
+            "}")
         
         let result2 = try! parser.parseMethod() as! MethodExpression
         
@@ -1122,13 +1122,13 @@ class ParserTests: XCTestCase {
         let src =
         "api Main within Main " +
             "with \"test.orb\" " +
-            "with \"test2.orb\" " +
+            "with \"test2.orb\" {" +
             "trait A(x Int) " +
-            "(Main) main (argc Int8, argv [String]) ()" +
+            "(Main) main (argc Int8, argv [String]) () {" +
                 "Main.puti32(argc)" +
                 "Main.puti32(argv.size())" +
-            "..." +
-        "..."
+            "}" +
+        "}"
         
         let parser = Parser()
         
@@ -1224,5 +1224,27 @@ class ParserTests: XCTestCase {
         
         XCTAssertEqual("IntWrapper", result.name.value)
         XCTAssertEqual(1, result.properties.count)
+    }
+    
+    func testComplexTraitDef() {
+        let parser = Parser()
+        
+        parser.tokens = lex(source: "trait IntWrapper() { (self Self) foo () () }")
+        
+        var result = try! parser.parseTraitDef()
+        
+        XCTAssertEqual(1, result.signatures.count)
+        
+        parser.tokens = lex(source:
+            "trait IntWrapper() {" +
+            "   (self Self) foo () () " +
+            "   (self Self) bar (other Self) (Self) " +
+            "   (self Self) baz (x Int, thing Self) (Int) " +
+            "}"
+        )
+        
+        result = try! parser.parseTraitDef()
+        
+        XCTAssertEqual(3, result.signatures.count)
     }
 }
