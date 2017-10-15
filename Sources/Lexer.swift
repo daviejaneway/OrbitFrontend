@@ -65,6 +65,8 @@ public struct TokenType : Equatable {
     static let LAngle = TokenType(name: "LAngle", pattern: "\\<")
     static let RAngle = TokenType(name: "RAngle", pattern: "\\>")
     
+    static let Delimiter = TokenType(name: "Delimiter", pattern: "[\\(\\)\\{\\}\\<\\>\\[\\]]")
+    
     static let Assignment = TokenType(name: "Assignment", pattern: "\\=")
     static let Operator = TokenType(name: "Operator", pattern: "[\\+\\-\\*\\/\\^\\!\\?\\%\\&\\<\\>\\|]+")
     
@@ -74,7 +76,7 @@ public struct TokenType : Equatable {
         return lhs.name == rhs.name
     }
     
-    static let base = [
+    public static let base = [
         Whitespace, Real, Int, Keyword,
         String,
         //DoubleQuote, Escape, UnicodeEscape,
@@ -162,7 +164,9 @@ public class Lexer : CompilationPhase {
             
             for tt in self.rules {
                 if let m = content.match(regex: tt.pattern) {
-                    content = content.substring(from: content.index(content.startIndex, offsetBy: m.characters.count))
+                    let idx = content.index(content.startIndex, offsetBy: m.characters.count)
+                    
+                    content = String(content[idx...])
                     matched = true
                     
                     self.currentPosition.character += m.characters.count

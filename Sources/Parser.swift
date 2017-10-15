@@ -68,7 +68,7 @@ public protocol TopLevelExpression : Expression {}
 public protocol Statement : Expression {}
 
 public struct RootExpression : Expression {
-    public var body: [TopLevelExpression] = []
+    public var body: [Expression] = []
     public var startToken: Token
     
     public let hashValue: Int = nextHashValue()
@@ -567,7 +567,7 @@ public protocol YieldingExpression : Expression {
     var returnType: TypeIdentifierExpression? { get }
 }
 
-public protocol SignatureExpression : Expression, YieldingExpression, NamedExpression {
+public protocol SignatureExpression : YieldingExpression, NamedExpression {
     associatedtype Receiver: TypedExpression
     
     var name: IdentifierExpression { get }
@@ -1317,7 +1317,7 @@ public class Parser : CompilationPhase {
         
         if next.type == .Keyword && next.value == "within" {
             _ = try consume()
-            within = try parseTypeIdentifier() // TODO - Allow fully qualified api names, e.g. Orb::Core::Main
+            within = try parseTypeIdentifier()
             
             next = try peek()
         }

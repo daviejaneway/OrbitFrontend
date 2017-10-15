@@ -19,10 +19,6 @@ func ** (radix: Int, power: Int) -> Int {
 
 class ParserTests: XCTestCase {
     
-    override class func setUp() {
-        try! Operator.initialiseBuiltInOperators()
-    }
-    
     func lex(source: String) -> [Token] {
         let lexer = Lexer()
         
