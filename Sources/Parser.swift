@@ -693,7 +693,7 @@ public class StaticCallExpression : CallExpression, GroupableExpression {
     public var absolutised: Bool = false
     public let startToken: Token
     
-    init(receiver: TypeIdentifierExpression, methodName: IdentifierExpression, args: [ArgType], startToken: Token) {
+    public init(receiver: TypeIdentifierExpression, methodName: IdentifierExpression, args: [ArgType], startToken: Token) {
         self.receiver = receiver
         self.methodName = methodName
         self.args = args
@@ -720,7 +720,7 @@ public class InstanceCallExpression : CallExpression, GroupableExpression {
     public var absolutised: Bool = false
     public let startToken: Token
     
-    init(receiver: GroupableExpression, methodName: IdentifierExpression, args: [ArgType], startToken: Token) {
+    public init(receiver: GroupableExpression, methodName: IdentifierExpression, args: [ArgType], startToken: Token) {
         self.receiver = receiver
         self.methodName = methodName
         self.args = args
