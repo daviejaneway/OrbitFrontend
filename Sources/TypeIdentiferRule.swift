@@ -18,14 +18,13 @@ class TypeIdentifierRule : ParseRule {
         return token.type == .TypeIdentifier || token.type == .LBracket
     }
     
-    func parse(context: ParseContext) throws -> Expression {
-        let start = try context.consume()
+    func parse(context: ParseContext) throws -> AbstractExpression {
+        let start = try context.expectAny(types: [.TypeIdentifier, .LBracket], consumes: true)
         
         guard start.type == .LBracket else {
-            let absolute = start.value.contains("::")
             let name = context.callingConvention.mangler.mangleTypeIdentifier(name: start.value)
             
-            return TypeIdentifierExpression(value: name, absolutised: absolute, startToken: start)
+            return TypeIdentifierExpression(value: name, startToken: start)
         }
         
         // Recursively pull out the element type

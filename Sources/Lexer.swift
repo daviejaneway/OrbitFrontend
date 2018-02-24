@@ -70,6 +70,8 @@ public struct TokenType : Equatable {
     static let Assignment = TokenType(name: "Assignment", pattern: "\\=")
     static let Operator = TokenType(name: "Operator", pattern: "[\\+\\-\\*\\/\\^\\!\\?\\%\\&\\<\\>\\|]+")
     
+    static let Annotation = TokenType(name: "Annotation", pattern: "@")
+    
     static let Whitespace = TokenType(name: "Whitespace", pattern: "[ \t\n\r]")
     
     public static func ==(lhs: TokenType, rhs: TokenType) -> Bool {
@@ -86,7 +88,8 @@ public struct TokenType : Equatable {
         LAngle, RAngle,
         LBracket, RBracket,
         LBrace, RBrace,
-        Assignment, Operator
+        Assignment, Operator,
+        Annotation
     ]
 }
 

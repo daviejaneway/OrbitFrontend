@@ -111,6 +111,12 @@ class OrbitFrontendTests : XCTestCase {
         ])
     }
     
+    func testLexAnnotation() {
+        OrbTestLex(src: "@", expectedTokens: [
+            Token(type: .Annotation, value: "@")
+        ])
+    }
+    
     func testLexComma() {
         OrbTestLex(src: ",", expectedTokens: [
             Token(type: .Comma, value: ",")

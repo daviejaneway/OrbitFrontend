@@ -18,7 +18,7 @@ class TypeDefRule : ParseRule {
         return first.type == .Keyword && first.value == "type"
     }
     
-    func parse(context: ParseContext) throws -> Expression {
+    func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.consume()
         let nameParser = TypeIdentifierRule() // TODO - Forbid list types here
         let name = try nameParser.parse(context: context) as! TypeIdentifierExpression
@@ -39,7 +39,7 @@ class TypeDefRule : ParseRule {
         
         let pairParser = PairRule()
         let expressionSetParser = ParenthesisedExpressionsRule(innerRule: pairParser)
-        let properties = try expressionSetParser.parse(context: context) as! [PairExpression]
+        let properties = try (expressionSetParser.parse(context: context) as! NonTerminalExpression<[AbstractExpression]>).value as! [PairExpression]
         
         var order = [String : Int]()
         properties.enumerated().forEach { order[$0.element.name.value] = $0.offset }

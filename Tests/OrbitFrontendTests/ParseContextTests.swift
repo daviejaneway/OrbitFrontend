@@ -28,7 +28,7 @@ class ParseContextTests: XCTestCase {
         return []
     }
     
-    func parse(src: String, withRule: ParseRule, expectFail: Bool = false) -> Expression? {
+    func parse(src: String, withRule: ParseRule, expectFail: Bool = false) -> AbstractExpression? {
         do {
             let tokens = lex(source: src)
             let context = ParseContext(callingConvention: LLVMCallingConvention(), rules: [])
@@ -45,6 +45,15 @@ class ParseContextTests: XCTestCase {
         }
         
         return nil
+    }
+    
+    func testAttemptAny() {
+        let context = ParseContext(callingConvention: LLVMCallingConvention(), rules: [])
+        context.tokens = lex(source: "api Test {}")
+        
+        let result = context.attemptAny(of: [TypeIdentifierRule(), APIRule()])
+        
+        XCTAssertTrue(result is APIExpression)
     }
     
     func testParseTypeIdentifier() {
@@ -74,11 +83,112 @@ class ParseContextTests: XCTestCase {
         XCTAssertNil(result)
     }
     
+//    func testAnnotations() {
+//        var result = parse(src: "@Foo", withRule: AnnotationRule())
+//        
+//        XCTAssertTrue(result is AnnotationExpression)
+//        XCTAssertEqual("Foo", (result as! AnnotationExpression).phaseReference.value)
+//
+//        result = parse(src: "@Foo(Orb::Core)", withRule: AnnotationRule())
+//
+//        XCTAssertTrue(result is AnnotationExpression)
+//        XCTAssertTrue((result as! AnnotationExpression).body is TypeIdentifierExpression)
+//        XCTAssertEqual("Foo", (result as! AnnotationExpression).phaseReference.value)
+//        XCTAssertEqual("Orb.Core", ((result as! AnnotationExpression).body as! TypeIdentifierExpression).value)
+//    }
+    
     func testEmptyAPI() {
         let result = parse(src: "api Foo {}", withRule: APIRule())
         
         XCTAssertTrue(result is APIExpression)
         XCTAssertEqual("Foo", (result as! APIExpression).name.value)
+    }
+    
+    func testWithin() {
+        var result = parse(src: "within Core", withRule: WithinRule())
+        
+        XCTAssertTrue(result is WithinExpression)
+        XCTAssertEqual("Core", (result as! WithinExpression).apiRef.value)
+        
+        result = parse(src: "within Orb::Core", withRule: WithinRule())
+        
+        XCTAssertTrue(result is WithinExpression)
+        XCTAssertEqual("Orb.Core", (result as! WithinExpression).apiRef.value)
+        
+        result = parse(src: "within Orb::Core::Test", withRule: WithinRule())
+        
+        XCTAssertTrue(result is WithinExpression)
+        XCTAssertEqual("Orb.Core.Test", (result as! WithinExpression).apiRef.value)
+        
+        _ = parse(src: "within", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "within ", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "within {", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "within }", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "{ within", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "} within", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "within abc", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "within Orb::abc", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "within ::", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "within ::Core", withRule: WithinRule(), expectFail: true)
+        _ = parse(src: "within Orb::", withRule: WithinRule(), expectFail: true)
+    }
+    
+    func testWith() {
+        var result = parse(src: "with Core", withRule: WithRule())
+        
+        XCTAssertTrue(result is WithExpression)
+        XCTAssertEqual(1, (result as! WithExpression).withs.count)
+        XCTAssertEqual("Core", (result as! WithExpression).withs[0].value)
+        
+        result = parse(src: "with Orb::Core", withRule: WithRule())
+        
+        XCTAssertTrue(result is WithExpression)
+        XCTAssertEqual(1, (result as! WithExpression).withs.count)
+        XCTAssertEqual("Orb.Core", (result as! WithExpression).withs[0].value)
+        
+        result = parse(src: "with Core with Test", withRule: WithRule())
+        
+        XCTAssertTrue(result is WithExpression)
+        XCTAssertEqual(2, (result as! WithExpression).withs.count)
+        XCTAssertEqual("Core", (result as! WithExpression).withs[0].value)
+        XCTAssertEqual("Test", (result as! WithExpression).withs[1].value)
+        
+        result = parse(src: "with Orb::Core with Foo::Bar::Baz with C", withRule: WithRule())
+        
+        XCTAssertTrue(result is WithExpression)
+        XCTAssertEqual(3, (result as! WithExpression).withs.count)
+        XCTAssertEqual("Orb.Core", (result as! WithExpression).withs[0].value)
+        XCTAssertEqual("Foo.Bar.Baz", (result as! WithExpression).withs[1].value)
+        XCTAssertEqual("C", (result as! WithExpression).withs[2].value)
+        
+        _ = parse(src: "with", withRule: WithRule(), expectFail: true)
+        _ = parse(src: "with orb", withRule: WithRule(), expectFail: true)
+        _ = parse(src: "with {", withRule: WithRule(), expectFail: true)
+        _ = parse(src: "with }", withRule: WithRule(), expectFail: true)
+        _ = parse(src: "{ with", withRule: WithRule(), expectFail: true)
+        _ = parse(src: "} with", withRule: WithRule(), expectFail: true)
+        _ = parse(src: "with Orb::core", withRule: WithRule(), expectFail: true)
+    }
+    
+    func testAPIWithin() {
+        var result = parse(src: "api Foo within Test {}", withRule: APIRule())
+        
+        XCTAssertTrue(result is APIExpression)
+        XCTAssertEqual("Foo", (result as! APIExpression).name.value)
+        XCTAssertEqual("Test", (result as! APIExpression).within!.apiRef.value)
+        
+        result = parse(src: "api Foo within Orb::Core {}", withRule: APIRule())
+        
+        XCTAssertTrue(result is APIExpression)
+        XCTAssertEqual("Foo", (result as! APIExpression).name.value)
+        XCTAssertEqual("Orb.Core", (result as! APIExpression).within!.apiRef.value)
+        
+        _ = parse(src: "api Foo within Orb::Core {", withRule: APIRule(), expectFail: true)
+        _ = parse(src: "api Foo within Orb::Core }", withRule: APIRule(), expectFail: true)
+        _ = parse(src: "api Foo within Orb::Core", withRule: APIRule(), expectFail: true)
+        _ = parse(src: "api Foo within Orb::Core ", withRule: APIRule(), expectFail: true)
+        _ = parse(src: "api Foo within {}", withRule: APIRule(), expectFail: true)
+        _ = parse(src: "api Foo within", withRule: APIRule(), expectFail: true)
     }
     
     func testIdentifier() {
@@ -99,19 +209,19 @@ class ParseContextTests: XCTestCase {
     func testIdentifiers() {
         let empty = parse(src: "()", withRule: ParenthesisedExpressionsRule(innerRule: IdentifierRule()))
         
-        XCTAssertTrue(empty is NonTerminalExpression<[Expression]>)
-        XCTAssertEqual(0, (empty as! NonTerminalExpression<[Expression]>).value.count)
+        XCTAssertTrue(empty is NonTerminalExpression<[AbstractExpression]>)
+        XCTAssertEqual(0, (empty as! NonTerminalExpression<[AbstractExpression]>).value.count)
         
         let single = parse(src: "(foo)", withRule: ParenthesisedExpressionsRule(innerRule: IdentifierRule()))
         
-        XCTAssertTrue(single is NonTerminalExpression<[Expression]>)
-        XCTAssertEqual(1, (single as! NonTerminalExpression<[Expression]>).value.count)
+        XCTAssertTrue(single is NonTerminalExpression<[AbstractExpression]>)
+        XCTAssertEqual(1, (single as! NonTerminalExpression<[AbstractExpression]>).value.count)
         
         let result = parse(src: "(a, b, c, foo)", withRule: ParenthesisedExpressionsRule(innerRule: IdentifierRule()))
         
-        XCTAssertTrue(result is NonTerminalExpression<[Expression]>)
+        XCTAssertTrue(result is NonTerminalExpression<[AbstractExpression]>)
         
-        let expressions = result as! NonTerminalExpression<[Expression]>
+        let expressions = result as! NonTerminalExpression<[AbstractExpression]>
         
         XCTAssertEqual(4, expressions.value.count)
         
@@ -119,5 +229,268 @@ class ParseContextTests: XCTestCase {
         XCTAssertTrue(expressions.value[1] is IdentifierExpression)
         XCTAssertTrue(expressions.value[2] is IdentifierExpression)
         XCTAssertTrue(expressions.value[3] is IdentifierExpression)
+    }
+    
+    func testIntLiteral() {
+        var result = parse(src: "1", withRule: IntegerLiteralRule())
+        
+        XCTAssertTrue(result is IntLiteralExpression)
+        XCTAssertEqual(1, (result as! IntLiteralExpression).value)
+        
+        result = parse(src: "123", withRule: IntegerLiteralRule())
+        
+        XCTAssertTrue(result is IntLiteralExpression)
+        XCTAssertEqual(123, (result as! IntLiteralExpression).value)
+        
+        result = parse(src: "123", withRule: IntegerLiteralRule())
+        
+        XCTAssertTrue(result is IntLiteralExpression)
+        XCTAssertEqual(123, (result as! IntLiteralExpression).value)
+        
+        result = parse(src: "(123)", withRule: IntegerLiteralRule())
+        
+        XCTAssertTrue(result is IntLiteralExpression)
+        XCTAssertEqual(123, (result as! IntLiteralExpression).value)
+        
+        result = parse(src: "((123))", withRule: IntegerLiteralRule())
+        
+        XCTAssertTrue(result is IntLiteralExpression)
+        XCTAssertEqual(123, (result as! IntLiteralExpression).value)
+        
+        result = parse(src: "(((123)))", withRule: IntegerLiteralRule())
+        
+        XCTAssertTrue(result is IntLiteralExpression)
+        XCTAssertEqual(123, (result as! IntLiteralExpression).value)
+        
+        _ = parse(src: "()", withRule: IntegerLiteralRule(), expectFail: true)
+        _ = parse(src: "(123", withRule: IntegerLiteralRule(), expectFail: true)
+        _ = parse(src: "1)", withRule: IntegerLiteralRule(), expectFail: true)
+        _ = parse(src: "(", withRule: IntegerLiteralRule(), expectFail: true)
+        _ = parse(src: ")", withRule: IntegerLiteralRule(), expectFail: true)
+        _ = parse(src: "((123)", withRule: IntegerLiteralRule(), expectFail: true)
+        _ = parse(src: "(123))", withRule: IntegerLiteralRule(), expectFail: true)
+    }
+    
+    func testRealLiteral() {
+        var result = parse(src: "1.0", withRule: RealLiteralRule())
+        
+        XCTAssertTrue(result is RealLiteralExpression)
+        XCTAssertEqual(1, (result as! RealLiteralExpression).value)
+        
+        result = parse(src: "123.456", withRule: RealLiteralRule())
+        
+        XCTAssertTrue(result is RealLiteralExpression)
+        XCTAssertEqual(123.456, (result as! RealLiteralExpression).value)
+        
+        result = parse(src: "(123456.909090)", withRule: RealLiteralRule())
+        
+        XCTAssertTrue(result is RealLiteralExpression)
+        XCTAssertEqual(123456.909090, (result as! RealLiteralExpression).value)
+        
+        result = parse(src: "((123456.909090))", withRule: RealLiteralRule())
+        
+        XCTAssertTrue(result is RealLiteralExpression)
+        XCTAssertEqual(123456.909090, (result as! RealLiteralExpression).value)
+        
+        result = parse(src: "(((123456.909090)))", withRule: RealLiteralRule())
+        
+        XCTAssertTrue(result is RealLiteralExpression)
+        XCTAssertEqual(123456.909090, (result as! RealLiteralExpression).value)
+        
+        _ = parse(src: "()", withRule: RealLiteralRule(), expectFail: true)
+        _ = parse(src: "(123.1", withRule: RealLiteralRule(), expectFail: true)
+        _ = parse(src: "0.1)", withRule: RealLiteralRule(), expectFail: true)
+        _ = parse(src: "(", withRule: RealLiteralRule(), expectFail: true)
+        _ = parse(src: ")", withRule: RealLiteralRule(), expectFail: true)
+        _ = parse(src: "((123.1)", withRule: RealLiteralRule(), expectFail: true)
+        _ = parse(src: "(123.1))", withRule: RealLiteralRule(), expectFail: true)
+    }
+    
+    func testUnary() {
+        var result = parse(src: "-1", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(1, ((result as! UnaryExpression).value as! IntLiteralExpression).value)
+        XCTAssertEqual(Operator.Negative, (result as! UnaryExpression).op)
+        
+        result = parse(src: "+1", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "+abc", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "+(1)", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "+(x)", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "(+1)", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "(+z)", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "(+(1))", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "+1.0", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "+(0.1)", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "(+4.1)", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "(+(189.098))", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "+ -1", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        XCTAssertTrue((result as! UnaryExpression).value is UnaryExpression)
+        XCTAssertEqual(Operator.Negative, ((result as! UnaryExpression).value as! UnaryExpression).op)
+    }
+    
+    func testBinary() {
+        var result = parse(src: "2 + 2", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue((result as! BinaryExpression).left is IntLiteralExpression)
+        XCTAssertTrue((result as! BinaryExpression).right is IntLiteralExpression)
+        XCTAssertEqual(Operator.Addition, (result as! BinaryExpression).op)
+        
+        result = parse(src: "(2 + 2)", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue((result as! BinaryExpression).left is IntLiteralExpression)
+        XCTAssertTrue((result as! BinaryExpression).right is IntLiteralExpression)
+        XCTAssertEqual(Operator.Addition, (result as! BinaryExpression).op)
+        
+        XCTAssertEqual(4.0, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        result = parse(src: "2 + 2 + 2", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        
+        XCTAssertEqual(6.0, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        result = parse(src: "2 + 2 + 2 + 2", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).left) is IntLiteralExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        XCTAssertTrue((((result as! BinaryExpression).right) as! BinaryExpression).right is BinaryExpression)
+        
+        XCTAssertEqual(8.0, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        result = parse(src: "2 + (2 + 2)", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        
+        XCTAssertEqual(6.0, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        result = parse(src: "(2 + 2) + 2", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).left) is BinaryExpression)
+        
+        XCTAssertEqual(6.0, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        result = parse(src: "2 * 2 + 2", withRule: BinaryRule())
+        
+        XCTAssertEqual(6.0, expressionSolver(expr: result!), accuracy: 0.01)
+
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).left) is BinaryExpression)
+        
+        result = parse(src: "2 * (2 + 2)", withRule: BinaryRule())
+        
+        XCTAssertEqual(8.0, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        
+        result = parse(src: "2 * 2 + -2 / 3", withRule: BinaryRule())
+        
+        XCTAssertEqual(3.333, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        
+        result = parse(src: "2 * (2 + 2) / 3", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        
+        XCTAssertEqual(2.666, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        result = parse(src: "(-5 * -2) - (1 - (5 * 8 / -5))", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        
+        XCTAssertEqual(1.0, expressionSolver(expr: result!), accuracy: 0.01)
+        
+        result = parse(src: "(-a * -b) - c - (d * (e / -f))", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).left) is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        
+        // TODO: Extend tests to cover all possible value types
+    }
+    
+    private func expressionSolver(expr: IntLiteralExpression) -> Float {
+        return Float(expr.value)
+    }
+    
+    private func expressionSolver(expr: UnaryExpression) -> Float {
+        return -expressionSolver(expr: expr.value)
+    }
+    
+    private func expressionSolver(expr: AbstractExpression) -> Float {
+        switch expr {
+            case is IntLiteralExpression: return expressionSolver(expr: expr as! IntLiteralExpression)
+            case is UnaryExpression: return expressionSolver(expr: expr as! UnaryExpression)
+            case is BinaryExpression: return expressionSolver(expr: expr as! BinaryExpression)
+            default: return 0
+        }
+    }
+    
+    private func expressionSolver(expr: BinaryExpression) -> Float {
+        switch expr.op.symbol {
+            case "+": return expressionSolver(expr: expr.left) + expressionSolver(expr: expr.right)
+            case "-": return expressionSolver(expr: expr.left) - expressionSolver(expr: expr.right)
+            case "*": return expressionSolver(expr: expr.left) * expressionSolver(expr: expr.right)
+            case "/": return expressionSolver(expr: expr.left) / expressionSolver(expr: expr.right)
+            default: return 0
+        }
     }
 }

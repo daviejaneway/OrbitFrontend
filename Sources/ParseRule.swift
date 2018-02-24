@@ -22,12 +22,12 @@ protocol ParseRule {
     var name: String { get }
     
     func trigger(tokens: [Token]) throws -> Bool
-    func parse(context: ParseContext) throws -> Expression
+    func parse(context: ParseContext) throws -> AbstractExpression
 }
 
 class ParseContext : CompilationPhase {
     typealias InputType = [Token]
-    typealias OutputType = Expression
+    typealias OutputType = AbstractExpression
     
     private let rules: [ParseRule]
     
@@ -69,7 +69,7 @@ class ParseContext : CompilationPhase {
         return try consume()
     }
     
-    func expectAny(types: [TokenType], overrideError: OrbitError? = nil) throws -> Token {
+    func expectAny(types: [TokenType], consumes: Bool = false, overrideError: OrbitError? = nil) throws -> Token {
         guard self.hasMore() else {
             throw overrideError ?? OrbitError.ranOutOfTokens()
         }
@@ -78,6 +78,10 @@ class ParseContext : CompilationPhase {
         
         for type in types {
             if next.type == type {
+                if consumes {
+                    return try consume()
+                }
+                
                 return next
             }
         }
@@ -89,7 +93,7 @@ class ParseContext : CompilationPhase {
         self.tokens.insert(contentsOf: tokens, at: 0)
     }
     
-    func attempt(rule: ParseRule) -> Expression? {
+    func attempt(rule: ParseRule) -> AbstractExpression? {
         let tokensCopy = self.tokens
         
         do {
@@ -102,10 +106,28 @@ class ParseContext : CompilationPhase {
         return nil
     }
     
-    func execute(input: [Token]) throws -> Expression {
+    func attemptAny(of: [ParseRule]) -> AbstractExpression? {
+        let tokensCopy = self.tokens
+        
+        var result: AbstractExpression
+        for rule in of {
+            do {
+                result = try rule.parse(context: self)
+                
+                // If we get here, this parse rule succeeded
+                return result
+            } catch {
+                self.tokens = tokensCopy
+            }
+        }
+        
+        return nil
+    }
+    
+    func execute(input: [Token]) throws -> AbstractExpression {
         self.tokens = input
         
-        var body = [Expression]()
+        var body = [AbstractExpression]()
         
         while self.hasMore() {
             var validRules = try self.rules.filter { try $0.trigger(tokens: self.tokens) }

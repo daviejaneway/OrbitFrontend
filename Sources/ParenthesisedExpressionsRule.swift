@@ -9,18 +9,15 @@
 import Foundation
 import OrbitCompilerUtils
 
-struct NonTerminalExpression<T> : ValueExpression {
-    var grouped: Bool = false
-
+class NonTerminalExpression<T> : AbstractExpression, ValueExpression {
     typealias ValueType = T
-    
-    public let startToken: Token
-    public let hashValue: Int = nextHashValue()
     
     public let value: T
     
-    func dump() -> String {
-        return ""
+    init(value: T, startToken: Token) {
+        self.value = value
+        
+        super.init(startToken: startToken)
     }
 }
 
@@ -46,11 +43,11 @@ class ParenthesisedExpressionsRule : ParseRule {
         return open.type == self.openParen && close.type == self.closeParen
     }
     
-    func parse(context: ParseContext) throws -> Expression {
+    func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: self.openParen)
         var next = try context.peek()
         
-        var expressions = [Expression]()
+        var expressions = [AbstractExpression]()
         while next.type != self.closeParen {
             let expression = try self.innerRule.parse(context: context)
             
@@ -67,6 +64,6 @@ class ParenthesisedExpressionsRule : ParseRule {
         
         _ = try context.expect(type: self.closeParen)
         
-        return NonTerminalExpression<[Expression]>(grouped: false, startToken: start, value: expressions)
+        return NonTerminalExpression<[AbstractExpression]>(value: expressions, startToken: start)
     }
 }

@@ -21,7 +21,7 @@ class PairRule : ParseRule {
         return name.type == .Identifier && type.type == .TypeIdentifier
     }
     
-    func parse(context: ParseContext) throws -> Expression {
+    func parse(context: ParseContext) throws -> AbstractExpression {
         let nameRule = IdentifierRule()
         let typeRule = TypeIdentifierRule()
         
