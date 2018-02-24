@@ -64,6 +64,54 @@ class RealLiteralRule : ParseRule {
     }
 }
 
+// TODO: Instance calls
+
+class StaticCallRule : ParseRule {
+    let name = "Orb.Core.Grammar.StaticCall"
+    
+    func trigger(tokens: [Token]) throws -> Bool {
+        guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
+        
+        return token.type == .TypeIdentifier
+    }
+    
+    func parse(context: ParseContext) throws -> AbstractExpression {
+        let start = try context.peek()
+        
+        if start.type == .LParen {
+            _ = try context.consume()
+            
+            let expr = try parse(context: context)
+            
+            _ = try context.expect(type: .RParen)
+            
+            return expr
+        }
+        
+        let rec = try TypeIdentifierRule().parse(context: context) as! TypeIdentifierExpression
+        
+        _ = try context.expect(type: .Dot)
+        
+        let fname = try IdentifierRule().parse(context: context) as! IdentifierExpression
+        
+        // TODO: Generics
+        
+        _ = try context.expect(type: .LParen)
+        
+        if try context.peek().type == .RParen {
+            _ = try context.expect(type: .RParen)
+            
+            return StaticCallExpression(receiver: rec, methodName: fname, args: [], startToken: start)
+        }
+        
+        let arguments = try DelimitedRule(delimiter: .Comma, elementRule: ValueRule()).parse(context: context) as! DelimitedExpression
+        
+        _ = try context.expect(type: .RParen)
+        
+        return StaticCallExpression(receiver: rec, methodName: fname, args: arguments.expressions as! [RValueExpression], startToken: start)
+    }
+}
+
 class UnaryRule : ParseRule {
     let name = "Orb.Core.Grammar.Unary"
     
@@ -77,7 +125,7 @@ class UnaryRule : ParseRule {
         let opToken = try context.consume()
         
         if opToken.type == .LParen {
-            let unaryParser = UnaryRule()
+            let unaryParser = ValueRule()
             let unaryExpression = try unaryParser.parse(context: context)
             
             _ = try context.expect(type: .RParen)
@@ -170,6 +218,7 @@ class PrimaryRule : ParseRule {
         guard let result = context.attemptAny(of: [
             // The order matters!
             UnaryRule(),
+            StaticCallRule(),
             RealLiteralRule(),
             IntegerLiteralRule(),
             IdentifierRule(),
@@ -194,6 +243,7 @@ class ValueRule : ParseRule {
             // The order matters!
             BinaryRule(),
             UnaryRule(),
+            StaticCallRule(),
             RealLiteralRule(),
             IntegerLiteralRule(),
             IdentifierRule(),
@@ -203,5 +253,60 @@ class ValueRule : ParseRule {
         }
         
         return result
+    }
+}
+
+class DelimitedExpression : AbstractExpression {
+    let expressions: [AbstractExpression]
+    
+    init(expressions: [AbstractExpression], startToken: Token) {
+        self.expressions = expressions
+        
+        super.init(startToken: startToken)
+    }
+}
+
+class DelimitedRule : ParseRule {
+    let name = "Orb.Core.Grammar.Delimited"
+    
+    let delimiter: TokenType
+    let elementRule: ParseRule
+    
+    init(delimiter: TokenType, elementRule: ParseRule) {
+        self.delimiter = delimiter
+        self.elementRule = elementRule
+    }
+    
+    func trigger(tokens: [Token]) throws -> Bool {
+        return true
+    }
+    
+    func parse(context: ParseContext) throws -> AbstractExpression {
+        var expressions = [AbstractExpression]()
+        let start = try context.peek()
+        
+        let first = try self.elementRule.parse(context: context)
+        
+        expressions.append(first)
+        
+        if context.hasMore() {
+            var next = try context.peek()
+            
+            while next.type == self.delimiter {
+                _ = try context.consume()
+                
+                let expr = try self.elementRule.parse(context: context)
+                
+                expressions.append(expr)
+                
+                if context.hasMore() {
+                    next = try context.peek()
+                } else {
+                    break
+                }
+            }
+        }
+        
+        return DelimitedExpression(expressions: expressions, startToken: start)
     }
 }

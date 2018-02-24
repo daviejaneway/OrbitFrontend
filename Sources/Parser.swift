@@ -366,12 +366,16 @@ public class Operator : Hashable, Equatable {
     public static let And = Operator(symbol: "&&", position: .Infix)
     public static let Or = Operator(symbol: "||", position: .Infix)
     
+    public static let BinaryAnd = Operator(symbol: "&", position: .Infix)
+    public static let BinaryOr = Operator(symbol: "|", position: .Infix)
+    
     private(set) static var operators = [
         Addition, Subtraction,
         Multiplication, Division, Modulo,
         Power,
         Positive, Negative, Not,
-        And, Or
+        And, Or,
+        BinaryAnd, BinaryOr
     ]
     
     public let hashValue: Int
@@ -432,6 +436,30 @@ public class Operator : Hashable, Equatable {
         try And.defineRelationship(other: Negative, precedence: .Lesser)
         try And.defineRelationship(other: Not, precedence: .Lesser)
         try And.defineRelationship(other: Or, precedence: .Equal)
+        try And.defineRelationship(other: BinaryAnd, precedence: .Lesser)
+        try And.defineRelationship(other: BinaryOr, precedence: .Lesser)
+        
+        try BinaryAnd.defineRelationship(other: Addition, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: Subtraction, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: Multiplication, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: Division, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: Modulo, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: Power, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: Positive, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: Negative, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: Not, precedence: .Lesser)
+        try BinaryAnd.defineRelationship(other: BinaryOr, precedence: .Equal)
+        
+        try BinaryOr.defineRelationship(other: Addition, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Subtraction, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Multiplication, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Division, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Modulo, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Power, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Positive, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Negative, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Not, precedence: .Lesser)
+        try BinaryOr.defineRelationship(other: Or, precedence: .Equal)
         
         try Or.defineRelationship(other: Addition, precedence: .Lesser)
         try Or.defineRelationship(other: Subtraction, precedence: .Lesser)
@@ -442,6 +470,7 @@ public class Operator : Hashable, Equatable {
         try Or.defineRelationship(other: Positive, precedence: .Lesser)
         try Or.defineRelationship(other: Negative, precedence: .Lesser)
         try Or.defineRelationship(other: Not, precedence: .Lesser)
+        try Or.defineRelationship(other: BinaryAnd, precedence: .Lesser)
         
         try Addition.defineRelationship(other: Addition, precedence: .Equal)
         try Addition.defineRelationship(other: Subtraction, precedence: .Equal)
@@ -487,20 +516,20 @@ public class Operator : Hashable, Equatable {
         try Power.defineRelationship(other: Power, precedence: .Equal)
         
         /// DEBUG CODE, PRINTS OPERATORS IN ORDER OF PRECEDENCE
-//        let scores: [(Operator, Int)] = self.operators.map {
-//            let score = $0.relationships.reduce(0, { (result, pair) -> Int in
-//                switch pair.value {
-//                    case .Greater: return result + 1
-//                    default: return result
-//                }
-//            })
-//            
-//            return ($0, score)
-//        }
-//        
-//        print(scores.sorted(by: { (a: (Operator, Int), b: (Operator, Int)) -> Bool in
-//            return a.1 > b.1
-//        }).map { ($0.0.symbol, $0.1) })
+        let scores: [(Operator, Int)] = self.operators.map {
+            let score = $0.relationships.reduce(0, { (result, pair) -> Int in
+                switch pair.value {
+                    case .Greater: return result + 1
+                    default: return result
+                }
+            })
+
+            return ($0, score)
+        }
+
+        print(scores.sorted(by: { (a: (Operator, Int), b: (Operator, Int)) -> Bool in
+            return a.1 > b.1
+        }).map { ($0.0.symbol, $0.1) })
     }
 }
 

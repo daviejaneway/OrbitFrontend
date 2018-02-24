@@ -271,6 +271,60 @@ class ParseContextTests: XCTestCase {
         _ = parse(src: "(123))", withRule: IntegerLiteralRule(), expectFail: true)
     }
     
+    func testDelimitedRule() {
+        var result = parse(src: "1, 2, 3", withRule: DelimitedRule(delimiter: .Comma, elementRule: IntegerLiteralRule()))
+        
+        XCTAssertTrue(result is DelimitedExpression)
+        XCTAssertEqual(3, (result as! DelimitedExpression).expressions.count)
+        
+        result = parse(src: "1", withRule: DelimitedRule(delimiter: .Comma, elementRule: IntegerLiteralRule()))
+        
+        XCTAssertTrue(result is DelimitedExpression)
+        XCTAssertEqual(1, (result as! DelimitedExpression).expressions.count)
+    }
+    
+    func testStaticCall() {
+        var result = parse(src: "X.y()", withRule: StaticCallRule())
+        
+        XCTAssertTrue(result is StaticCallExpression)
+        XCTAssertEqual("X", (result as! StaticCallExpression).receiver.value)
+        XCTAssertEqual("y", (result as! StaticCallExpression).methodName.value)
+        
+        result = parse(src: "(X.y())", withRule: StaticCallRule())
+        
+        XCTAssertTrue(result is StaticCallExpression)
+        XCTAssertEqual("X", (result as! StaticCallExpression).receiver.value)
+        XCTAssertEqual("y", (result as! StaticCallExpression).methodName.value)
+        
+        result = parse(src: "X.y(1)", withRule: StaticCallRule())
+        
+        XCTAssertTrue(result is StaticCallExpression)
+        XCTAssertEqual("X", (result as! StaticCallExpression).receiver.value)
+        XCTAssertEqual("y", (result as! StaticCallExpression).methodName.value)
+        XCTAssertEqual(1, (result as! StaticCallExpression).args.count)
+        
+        result = parse(src: "X.y(1, 2)", withRule: StaticCallRule())
+        
+        XCTAssertTrue(result is StaticCallExpression)
+        XCTAssertEqual("X", (result as! StaticCallExpression).receiver.value)
+        XCTAssertEqual("y", (result as! StaticCallExpression).methodName.value)
+        XCTAssertEqual(2, (result as! StaticCallExpression).args.count)
+        
+        result = parse(src: "X.y(Y.z(a, b, c), 2)", withRule: StaticCallRule())
+        
+        XCTAssertTrue(result is StaticCallExpression)
+        XCTAssertEqual("X", (result as! StaticCallExpression).receiver.value)
+        XCTAssertEqual("y", (result as! StaticCallExpression).methodName.value)
+        XCTAssertEqual(2, (result as! StaticCallExpression).args.count)
+        
+        result = parse(src: "X.y(Y.z(a, b, c), Z.xyz())", withRule: StaticCallRule())
+        
+        XCTAssertTrue(result is StaticCallExpression)
+        XCTAssertEqual("X", (result as! StaticCallExpression).receiver.value)
+        XCTAssertEqual("y", (result as! StaticCallExpression).methodName.value)
+        XCTAssertEqual(2, (result as! StaticCallExpression).args.count)
+    }
+    
     func testRealLiteral() {
         var result = parse(src: "1.0", withRule: RealLiteralRule())
         
@@ -463,6 +517,18 @@ class ParseContextTests: XCTestCase {
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).left) is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
+        
+        result = parse(src: "A & B", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).left) is TypeIdentifierExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is TypeIdentifierExpression)
+        
+        result = parse(src: "A | B", withRule: BinaryRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue(((result as! BinaryExpression).left) is TypeIdentifierExpression)
+        XCTAssertTrue(((result as! BinaryExpression).right) is TypeIdentifierExpression)
         
         // TODO: Extend tests to cover all possible value types
     }

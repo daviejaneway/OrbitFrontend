@@ -19,7 +19,7 @@ class IdentifierRule : ParseRule {
     }
     
     func parse(context: ParseContext) throws -> AbstractExpression {
-        let id = try context.consume()
+        let id = try context.expect(type: .Identifier)
         return IdentifierExpression(value: id.value, startToken: id)
     }
 }
