@@ -325,6 +325,27 @@ class ParseContextTests: XCTestCase {
         XCTAssertEqual(2, (result as! StaticCallExpression).args.count)
     }
     
+    func testInstanceCall() {
+        var result = parse(src: "x.y()", withRule: InstanceCallRule())
+        
+        XCTAssertTrue(result is InstanceCallExpression)
+        XCTAssertEqual("x", ((result as! InstanceCallExpression).receiver as! IdentifierExpression).value)
+        XCTAssertEqual("y", (result as! InstanceCallExpression).methodName.value)
+        
+        result = parse(src: "(x.y())", withRule: InstanceCallRule())
+        
+        XCTAssertTrue(result is InstanceCallExpression)
+        XCTAssertEqual("x", ((result as! InstanceCallExpression).receiver as! IdentifierExpression).value)
+        XCTAssertEqual("y", (result as! InstanceCallExpression).methodName.value)
+        
+        result = parse(src: "x.y(x.z(a, b, c), Z.xyz())", withRule: InstanceCallRule())
+        
+        XCTAssertTrue(result is InstanceCallExpression)
+        XCTAssertEqual("x", ((result as! InstanceCallExpression).receiver as! IdentifierExpression).value)
+        XCTAssertEqual("y", (result as! InstanceCallExpression).methodName.value)
+        XCTAssertEqual(2, (result as! InstanceCallExpression).args.count)
+    }
+    
     func testRealLiteral() {
         var result = parse(src: "1.0", withRule: RealLiteralRule())
         
@@ -371,6 +392,24 @@ class ParseContextTests: XCTestCase {
         
         XCTAssertTrue(result is UnaryExpression)
         XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
+        
+        result = parse(src: "-x.y()", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertTrue((result as! UnaryExpression).value is InstanceCallExpression)
+        XCTAssertEqual(Operator.Negative, (result as! UnaryExpression).op)
+        
+        result = parse(src: "-(x.y())", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertTrue((result as! UnaryExpression).value is InstanceCallExpression)
+        XCTAssertEqual(Operator.Negative, (result as! UnaryExpression).op)
+        
+        result = parse(src: "(-x.y())", withRule: UnaryRule())
+        
+        XCTAssertTrue(result is UnaryExpression)
+        XCTAssertTrue((result as! UnaryExpression).value is InstanceCallExpression)
+        XCTAssertEqual(Operator.Negative, (result as! UnaryExpression).op)
         
         result = parse(src: "+abc", withRule: UnaryRule())
         
@@ -428,6 +467,157 @@ class ParseContextTests: XCTestCase {
         XCTAssertEqual(Operator.Positive, (result as! UnaryExpression).op)
         XCTAssertTrue((result as! UnaryExpression).value is UnaryExpression)
         XCTAssertEqual(Operator.Negative, ((result as! UnaryExpression).value as! UnaryExpression).op)
+    }
+    
+    func testStaticSignature() {
+        var result = parse(src: "(Int) foo (x Int, y Int) (Int)", withRule: StaticSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(2, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).returnType!.value)
+        
+        result = parse(src: "(Int) foo (x Int, y Int) ()", withRule: StaticSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(2, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertNil((result as! StaticSignatureExpression).returnType)
+        
+        result = parse(src: "(Int) foo () ()", withRule: StaticSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(0, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertNil((result as! StaticSignatureExpression).returnType)
+        
+        result = parse(src: "(Orb::Core::Int) foo (x Orb::Core::Int, y Orb::Core::Int) (Orb::Core::Int)", withRule: StaticSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(2, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Orb.Core.Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertEqual("Orb.Core.Int", (result as! StaticSignatureExpression).returnType!.value)
+    }
+    
+    func testInstanceSignature() {
+        var result = parse(src: "(self Int) foo (x Int, y Real) (Real)", withRule: InstanceSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(3, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertEqual("Real", (result as! StaticSignatureExpression).returnType!.value)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).parameters[0].type.value)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).parameters[1].type.value)
+        XCTAssertEqual("Real", (result as! StaticSignatureExpression).parameters[2].type.value)
+        
+        result = parse(src: "(self Int) foo (x Int, y Real) ()", withRule: InstanceSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(3, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertNil((result as! StaticSignatureExpression).returnType)
+        
+        result = parse(src: "(self Int) foo () ()", withRule: InstanceSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(1, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertNil((result as! StaticSignatureExpression).returnType)
+    }
+    
+    func testSignature() {
+        var result = parse(src: "(self Int) foo (x Int, y Real) (Real)", withRule: SignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(3, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertEqual("Real", (result as! StaticSignatureExpression).returnType!.value)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).parameters[0].type.value)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).parameters[1].type.value)
+        XCTAssertEqual("Real", (result as! StaticSignatureExpression).parameters[2].type.value)
+        
+        result = parse(src: "(Int) foo () ()", withRule: StaticSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(0, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertNil((result as! StaticSignatureExpression).returnType)
+    }
+    
+    func testReturn() {
+        var result = parse(src: "return 1", withRule: ReturnRule())
+        
+        XCTAssertTrue(result is ReturnStatement)
+        XCTAssertTrue((result as! ReturnStatement).value is IntLiteralExpression)
+        
+        result = parse(src: "return x", withRule: ReturnRule())
+        
+        XCTAssertTrue(result is ReturnStatement)
+        XCTAssertTrue((result as! ReturnStatement).value is IdentifierExpression)
+        
+        result = parse(src: "return 2 + 4", withRule: ReturnRule())
+        
+        XCTAssertTrue(result is ReturnStatement)
+        XCTAssertTrue((result as! ReturnStatement).value is BinaryExpression)
+        
+        result = parse(src: "return { return 5 }", withRule: ReturnRule())
+        
+        XCTAssertTrue(result is ReturnStatement)
+        XCTAssertTrue((result as! ReturnStatement).value is BlockExpression)
+        
+        _ = parse(src: "return", withRule: ReturnRule(), expectFail: true)
+    }
+    
+    func testBlock() {
+        var result = parse(src: "{ return 123 }", withRule: BlockRule())
+        
+        XCTAssertTrue(result is BlockExpression)
+        XCTAssertEqual(0, (result as! BlockExpression).body.count)
+        XCTAssertNotNil((result as! BlockExpression).returnStatement)
+        
+        result = parse(src: "{ Int.add(2, 2) }", withRule: BlockRule())
+        
+        XCTAssertTrue(result is BlockExpression)
+        XCTAssertEqual(1, (result as! BlockExpression).body.count)
+        XCTAssertNil((result as! BlockExpression).returnStatement)
+        
+        result = parse(src: "{ Int.add(2, 2) return { return x } }", withRule: BlockRule())
+        
+        XCTAssertTrue(result is BlockExpression)
+        XCTAssertEqual(1, (result as! BlockExpression).body.count)
+        XCTAssertNotNil((result as! BlockExpression).returnStatement)
+        
+        result = parse(src: "{}", withRule: BlockRule())
+        
+        XCTAssertTrue(result is BlockExpression)
+        XCTAssertEqual(0, (result as! BlockExpression).body.count)
+        XCTAssertNil((result as! BlockExpression).returnStatement)
+    }
+    
+    func testMethod() {
+        var result = parse(src: "(Int) foo () () {  }", withRule: MethodRule())
+        
+        XCTAssertTrue(result is MethodExpression)
+        
+        result = parse(src: "(Int) foo (x Int, y Int) (Int) { Int.foo(x, y) return 123 }", withRule: MethodRule())
+        
+        XCTAssertTrue(result is MethodExpression)
+        XCTAssertEqual(1, (result as! MethodExpression).body.body.count)
+        XCTAssertNotNil((result as! MethodExpression).body.returnStatement)
+        
+        result = parse(src: "(Int) foo (x Int, y Int) (Int) { defer { Int.foo(1, 2) } Int.foo(x, y) return 123 }", withRule: MethodRule())
+        
+        XCTAssertTrue(result is MethodExpression)
+        XCTAssertEqual(2, (result as! MethodExpression).body.body.count)
+        XCTAssertNotNil((result as! MethodExpression).body.returnStatement)
+    }
+    
+    func testDefer() {
+        let result = parse(src: "defer {}", withRule: DeferRule())
+        
+        XCTAssert(result is DeferStatement)
+        
+        _ = parse(src: "defer { return 1 }", withRule: DeferRule(), expectFail: true)
     }
     
     func testBinary() {

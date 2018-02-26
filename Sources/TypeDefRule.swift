@@ -20,7 +20,7 @@ class TypeDefRule : ParseRule {
     
     func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.consume()
-        let nameParser = TypeIdentifierRule() // TODO - Forbid list types here
+        let nameParser = TypeIdentifierRule() // TODO: Forbid list types here
         let name = try nameParser.parse(context: context) as! TypeIdentifierExpression
         
         guard context.hasMore() else {

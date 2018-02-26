@@ -54,6 +54,14 @@ extension OrbitError {
     static func unknownOperator(symbol: String, position: OperatorPosition, token: Token) -> OrbitError {
         return OrbitError(message: "Unknown operator '\(symbol)' in \(position) position\(token.position)")
     }
+    
+    static func codeAfterReturn(token: Token) -> OrbitError {
+        return OrbitError(message: "Code after return statement is redundant: \(token.position)")
+    }
+    
+    static func deferReturn(token: Token) -> OrbitError {
+        return OrbitError(message: "Defer statements cannot return: \(token.position)")
+    }
 }
 
 private var HashCounter = 0
@@ -604,9 +612,9 @@ public class StaticSignatureExpression : AbstractExpression, SignatureExpression
 
 public class MethodExpression : AbstractExpression, ExportableExpression {
     public let signature: StaticSignatureExpression
-    public let body: [Statement]
+    public let body: BlockExpression
     
-    public init(signature: StaticSignatureExpression, body: [Statement], startToken: Token) {
+    public init(signature: StaticSignatureExpression, body: BlockExpression, startToken: Token) {
         self.signature = signature
         self.body = body
         
@@ -646,9 +654,9 @@ public class APIExpression : AbstractExpression, TopLevelExpression {
 }
 
 public class ReturnStatement : AbstractExpression, Statement {
-    public let value: Expression
+    public let value: AbstractExpression
     
-    init(value: Expression, startToken: Token) {
+    init(value: AbstractExpression, startToken: Token) {
         self.value = value
         
         super.init(startToken: startToken)
@@ -657,9 +665,9 @@ public class ReturnStatement : AbstractExpression, Statement {
 
 public class AssignmentStatement : AbstractExpression, Statement {
     public let name: IdentifierExpression
-    public let value: Expression
+    public let value: AbstractExpression
     
-    init(name: IdentifierExpression, value: Expression, startToken: Token) {
+    init(name: IdentifierExpression, value: AbstractExpression, startToken: Token) {
         self.name = name
         self.value = value
         
