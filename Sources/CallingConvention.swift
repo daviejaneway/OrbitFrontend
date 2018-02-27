@@ -14,6 +14,8 @@ public protocol NameMangler {
 
 public protocol CallingConvention {
     var mangler: NameMangler { get }
+    
+    init()
 }
 
 public class LLVMNameMangler : NameMangler {
@@ -27,4 +29,6 @@ public class LLVMNameMangler : NameMangler {
 
 public class LLVMCallingConvention : CallingConvention {
     public let mangler: NameMangler = LLVMNameMangler()
+    
+    public required init() {}
 }
