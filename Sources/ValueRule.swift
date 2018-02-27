@@ -155,8 +155,8 @@ public class StaticCallRule : ParseRule {
 }
 
 public class BlockExpression : AbstractExpression {
-    let body: [Statement]
-    let returnStatement: ReturnStatement?
+    public let body: [Statement]
+    public let returnStatement: ReturnStatement?
     
     init(body: [Statement], returnStatement: ReturnStatement?, startToken: Token) {
         self.body = body
