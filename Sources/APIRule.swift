@@ -156,13 +156,19 @@ public class APIRule : ParseRule {
         _ = try context.consume()
         next = try context.peek()
         
+        var body = [AbstractExpression]()
+        
         while next.type != .RBrace {
             if next.type == .Keyword && next.value == "type" {
-                // Parse type identifier
+                // Parse type def
+                let expr = try TypeDefRule().parse(context: context)
+                body.append(expr)
             } else if next.type == .LParen {
                 // Parse method
+                let expr = try MethodRule().parse(context: context)
+                body.append(expr)
             } else {
-                break
+                throw OrbitError.unexpectedToken(token: next)
             }
             
             next = try context.peek()
@@ -170,6 +176,6 @@ public class APIRule : ParseRule {
         
         _ = try context.expect(type: .RBrace, overrideError: OrbitError.unclosedBlock(startToken: start))
         
-        return APIExpression(name: name, body: [], with: with, within: within, startToken: start)
+        return APIExpression(name: name, body: body, with: with, within: within, startToken: start)
     }
 }
