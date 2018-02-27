@@ -25,9 +25,9 @@ protocol ParseRule {
     func parse(context: ParseContext) throws -> AbstractExpression
 }
 
-class ParseContext : CompilationPhase {
-    typealias InputType = [Token]
-    typealias OutputType = AbstractExpression
+public class ParseContext : CompilationPhase {
+    public typealias InputType = [Token]
+    public typealias OutputType = AbstractExpression
     
     private let rules: [ParseRule]
     
@@ -124,7 +124,7 @@ class ParseContext : CompilationPhase {
         return nil
     }
     
-    func execute(input: [Token]) throws -> AbstractExpression {
+    public func execute(input: [Token]) throws -> AbstractExpression {
         self.tokens = input
         
         var body = [AbstractExpression]()
