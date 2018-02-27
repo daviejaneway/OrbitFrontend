@@ -25,16 +25,16 @@ public class WithinExpression : AbstractExpression {
     }
 }
 
-class WithinRule : ParseRule {
-    let name = "Orb.Core.Grammar.Within"
+public class WithinRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Within"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .Keyword && token.value == "within"
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let keyword = try context.consume()
         
         guard keyword.value == "within" else { throw OrbitError.unexpectedToken(token: keyword) }
@@ -61,16 +61,16 @@ public class WithExpression : AbstractExpression {
     }
 }
 
-class WithRule : ParseRule {
-    let name = "Orb.Core.Grammar.With"
+public class WithRule : ParseRule {
+    public let name = "Orb.Core.Grammar.With"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .Keyword && token.value == "with"
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         var names = [TypeIdentifierExpression]()
         let start = try context.peek()
         
@@ -92,16 +92,16 @@ class WithRule : ParseRule {
     }
 }
 
-class APIRule : ParseRule {
-    let name = "Orb.Core.Grammar.API"
+public class APIRule : ParseRule {
+    public let name = "Orb.Core.Grammar.API"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .Keyword && token.value == "api"
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.consume()
         
         let nameParser = TypeIdentifierRule()

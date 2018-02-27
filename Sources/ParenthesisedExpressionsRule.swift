@@ -9,8 +9,8 @@
 import Foundation
 import OrbitCompilerUtils
 
-class NonTerminalExpression<T> : AbstractExpression, ValueExpression {
-    typealias ValueType = T
+public class NonTerminalExpression<T> : AbstractExpression, ValueExpression {
+    public typealias ValueType = T
     
     public let value: T
     
@@ -21,8 +21,8 @@ class NonTerminalExpression<T> : AbstractExpression, ValueExpression {
     }
 }
 
-class ParenthesisedExpressionsRule : ParseRule {
-    let name = "Orb.Core.Grammar.ParenthesisedExpressions"
+public class ParenthesisedExpressionsRule : ParseRule {
+    public let name = "Orb.Core.Grammar.ParenthesisedExpressions"
     
     private let openParen: TokenType
     private let closeParen: TokenType
@@ -37,13 +37,13 @@ class ParenthesisedExpressionsRule : ParseRule {
         self.delimiter = delimiter
     }
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let open = tokens.first, let close = tokens.last else { throw OrbitError.ranOutOfTokens() }
         
         return open.type == self.openParen && close.type == self.closeParen
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: self.openParen)
         var next = try context.peek()
         

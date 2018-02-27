@@ -9,16 +9,16 @@
 import Foundation
 import OrbitCompilerUtils
 
-class IdentifierRule : ParseRule {
-    let name = "Orb.Core.Grammar.Identifier"
+public class IdentifierRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Identifier"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .Identifier
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let id = try context.expect(type: .Identifier)
         return IdentifierExpression(value: id.value, startToken: id)
     }

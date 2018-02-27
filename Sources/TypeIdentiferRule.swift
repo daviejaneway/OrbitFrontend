@@ -9,16 +9,16 @@
 import Foundation
 import OrbitCompilerUtils
 
-class TypeIdentifierRule : ParseRule {
-    let name = "Orb.Core.Grammar.TypeIdentifier"
+public class TypeIdentifierRule : ParseRule {
+    public let name = "Orb.Core.Grammar.TypeIdentifier"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .TypeIdentifier || token.type == .LBracket
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expectAny(types: [.TypeIdentifier, .LBracket], consumes: true)
         
         guard start.type == .LBracket else {

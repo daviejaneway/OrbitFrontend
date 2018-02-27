@@ -9,8 +9,8 @@ import Foundation
 import OrbitCompilerUtils
 
 public class AnnotationExpression : AbstractExpression {
-    let phaseReference: TypeIdentifierExpression
-    let body: AbstractExpression
+    public let phaseReference: TypeIdentifierExpression
+    public let body: AbstractExpression
     
     init(phaseReference: TypeIdentifierExpression, body: AbstractExpression, startToken: Token) {
         self.phaseReference = phaseReference

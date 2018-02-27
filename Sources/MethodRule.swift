@@ -8,20 +8,20 @@
 import Foundation
 import OrbitCompilerUtils
 
-protocol BaseSignatureRule : ParseRule {}
+public protocol BaseSignatureRule : ParseRule {}
 
-extension BaseSignatureRule {
-    func trigger(tokens: [Token]) throws -> Bool {
+public extension BaseSignatureRule {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .LParen
     }
 }
 
-class InstanceSignatureRule : BaseSignatureRule {
-    let name = "Orb.Core.Grammar.Signature"
+public class InstanceSignatureRule : BaseSignatureRule {
+    public let name = "Orb.Core.Grammar.Signature"
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: .LParen)
         let receiverPair = try PairRule().parse(context: context) as! PairExpression
         _ = try context.expect(type: .RParen)
@@ -60,10 +60,10 @@ class InstanceSignatureRule : BaseSignatureRule {
     }
 }
 
-class StaticSignatureRule : BaseSignatureRule {
-    let name = "Orb.Core.Grammar.Signature"
+public class StaticSignatureRule : BaseSignatureRule {
+    public let name = "Orb.Core.Grammar.Signature"
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: .LParen)
         let receiver = try TypeIdentifierRule().parse(context: context) as! TypeIdentifierExpression
         
@@ -101,10 +101,10 @@ class StaticSignatureRule : BaseSignatureRule {
     }
 }
 
-class SignatureRule : BaseSignatureRule {
-    let name = "Orb.Core.Grammar.Signature"
+public class SignatureRule : BaseSignatureRule {
+    public let name = "Orb.Core.Grammar.Signature"
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         guard let expr = context.attemptAny(of: [StaticSignatureRule(), InstanceSignatureRule()]) else {
             throw OrbitError(message: "Expected signature")
         }
@@ -113,26 +113,26 @@ class SignatureRule : BaseSignatureRule {
     }
 }
 
-class DeferStatement : AbstractExpression, Statement {
-    let block: BlockExpression
+public class DeferStatement : AbstractExpression, Statement {
+    public let block: BlockExpression
     
-    init(block: BlockExpression, startToken: Token) {
+    public init(block: BlockExpression, startToken: Token) {
         self.block = block
         
         super.init(startToken: startToken)
     }
 }
 
-class DeferRule : ParseRule {
-    let name = "Orb.Core.Grammar.Defer"
+public class DeferRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Defer"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .Keyword && token.value == "defer"
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: .Keyword)
         
         guard start.value == "defer" else { throw OrbitError.unexpectedToken(token: start) }
@@ -147,14 +147,14 @@ class DeferRule : ParseRule {
     }
 }
 
-class MethodRule : ParseRule {
-    let name = "Orb.Core.Grammar.Method"
+public class MethodRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Method"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         return true
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.peek()
         let signature = try SignatureRule().parse(context: context) as! StaticSignatureExpression
         let body = try BlockRule().parse(context: context) as! BlockExpression

@@ -8,16 +8,16 @@
 import Foundation
 import OrbitCompilerUtils
 
-class IntegerLiteralRule : ParseRule {
-    let name = "Orb.Core.Grammar.Literal.Integer"
+public class IntegerLiteralRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Literal.Integer"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return [.LParen, .Int].contains(token.type)
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let valueToken = try context.expectAny(types: [.Int, .LParen], consumes: true)
         
         if valueToken.type == .LParen {
@@ -36,16 +36,16 @@ class IntegerLiteralRule : ParseRule {
     }
 }
 
-class RealLiteralRule : ParseRule {
-    let name = "Orb.Core.Grammar.Literal.Real"
+public class RealLiteralRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Literal.Real"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return [.LParen, .Real].contains(token.type)
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let realToken = try context.expectAny(types: [.Real, .LParen], consumes: true)
         
         if realToken.type == .LParen {
@@ -66,16 +66,16 @@ class RealLiteralRule : ParseRule {
 
 // TODO: Instance calls
 
-class InstanceCallRule : ParseRule {
-    let name = "Orb.Core.Grammar.InstanceCall"
+public class InstanceCallRule : ParseRule {
+    public let name = "Orb.Core.Grammar.InstanceCall"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .Identifier
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.peek()
         
         if start.type == .LParen {
@@ -108,16 +108,16 @@ class InstanceCallRule : ParseRule {
     }
 }
 
-class StaticCallRule : ParseRule {
-    let name = "Orb.Core.Grammar.StaticCall"
+public class StaticCallRule : ParseRule {
+    public let name = "Orb.Core.Grammar.StaticCall"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .TypeIdentifier
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.peek()
         
         if start.type == .LParen {

@@ -9,16 +9,16 @@
 import Foundation
 import OrbitCompilerUtils
 
-class TypeDefRule : ParseRule {
-    let name = "Orb.Core.Grammar.TypeDef"
+public class TypeDefRule : ParseRule {
+    public let name = "Orb.Core.Grammar.TypeDef"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let first = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return first.type == .Keyword && first.value == "type"
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.consume()
         let nameParser = TypeIdentifierRule() // TODO: Forbid list types here
         let name = try nameParser.parse(context: context) as! TypeIdentifierExpression

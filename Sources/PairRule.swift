@@ -9,10 +9,10 @@
 import Foundation
 import OrbitCompilerUtils
 
-class PairRule : ParseRule {
-    let name = "Orb.Core.Grammar.Pair"
+public class PairRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Pair"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard tokens.count > 1 else { throw OrbitError.ranOutOfTokens() }
         
         let name = tokens[0]
@@ -21,7 +21,7 @@ class PairRule : ParseRule {
         return name.type == .Identifier && type.type == .TypeIdentifier
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let nameRule = IdentifierRule()
         let typeRule = TypeIdentifierRule()
         
