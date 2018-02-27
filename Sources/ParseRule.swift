@@ -18,7 +18,7 @@ extension OrbitError {
 typealias ParseRuleTrigger = ([Token]) throws -> Bool
 typealias ParseRuleParser<T> = (ParseContext) throws -> T
 
-protocol ParseRule {
+public protocol ParseRule {
     var name: String { get }
     
     func trigger(tokens: [Token]) throws -> Bool
@@ -34,9 +34,15 @@ public class ParseContext : CompilationPhase {
     internal let callingConvention: CallingConvention
     internal var tokens: [Token] = []
     
-    init(callingConvention: CallingConvention, rules: [ParseRule]) {
+    public init(callingConvention: CallingConvention, rules: [ParseRule]) {
         self.callingConvention = callingConvention
         self.rules = rules
+    }
+    
+    public static func bootstrapParser() -> ParseContext {
+        return ParseContext(callingConvention: LLVMCallingConvention(), rules: [
+        
+        ])
     }
     
     func hasMore() -> Bool {

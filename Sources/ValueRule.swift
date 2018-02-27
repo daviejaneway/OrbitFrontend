@@ -167,15 +167,15 @@ public class BlockExpression : AbstractExpression {
 }
 
 public class BlockRule : ParseRule {
-    let name = "Orb.Core.Grammar.Block"
+    public let name = "Orb.Core.Grammar.Block"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .LBrace
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: .LBrace)
         var body = [Statement]()
         var ret: ReturnStatement? = nil

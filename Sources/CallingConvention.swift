@@ -8,23 +8,23 @@
 
 import Foundation
 
-protocol NameMangler {
+public protocol NameMangler {
     func mangleTypeIdentifier(name: String) -> String
 }
 
-protocol CallingConvention {
+public protocol CallingConvention {
     var mangler: NameMangler { get }
 }
 
-class LLVMNameMangler : NameMangler {
+public class LLVMNameMangler : NameMangler {
     
-    init() {}
+    public init() {}
     
-    func mangleTypeIdentifier(name: String) -> String {
+    public func mangleTypeIdentifier(name: String) -> String {
         return name.replacingOccurrences(of: "::", with: ".")
     }
 }
 
-class LLVMCallingConvention : CallingConvention {
-    let mangler: NameMangler = LLVMNameMangler()
+public class LLVMCallingConvention : CallingConvention {
+    public let mangler: NameMangler = LLVMNameMangler()
 }

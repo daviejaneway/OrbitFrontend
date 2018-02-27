@@ -21,15 +21,15 @@ public class AnnotationExpression : AbstractExpression {
 }
 
 public class AnnotationRule : ParseRule {
-    let name = "Orb.Core.Grammar.Annotation"
+    public let name = "Orb.Core.Grammar.Annotation"
     
-    func trigger(tokens: [Token]) throws -> Bool {
+    public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
         return token.type == .Annotation
     }
     
-    func parse(context: ParseContext) throws -> AbstractExpression {
+    public func parse(context: ParseContext) throws -> AbstractExpression {
         // Consume '@' symbol
         let start = try context.consume()
         
