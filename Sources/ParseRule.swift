@@ -41,7 +41,7 @@ public class ParseContext : CompilationPhase {
     
     public static func bootstrapParser() -> ParseContext {
         return ParseContext(callingConvention: LLVMCallingConvention(), rules: [
-        
+            ProgramRule()
         ])
     }
     

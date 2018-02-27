@@ -723,6 +723,16 @@ class ParseContextTests: XCTestCase {
         // TODO: Extend tests to cover all possible value types
     }
     
+    func testProgram() {
+        let result = parse(src:
+            "api A {}" +
+            "api B {}"
+        , withRule: ProgramRule())
+        
+        XCTAssertTrue(result is ProgramExpression)
+        XCTAssertEqual(2, (result as! ProgramExpression).apis.count)
+    }
+    
     private func expressionSolver(expr: IntLiteralExpression) -> Float {
         return Float(expr.value)
     }

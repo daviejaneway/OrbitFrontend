@@ -92,6 +92,42 @@ public class WithRule : ParseRule {
     }
 }
 
+public class ProgramExpression : AbstractExpression {
+    public let apis: [APIExpression]
+    
+    public init(apis: [APIExpression], startToken: Token) {
+        self.apis = apis
+        
+        super.init(startToken: startToken)
+    }
+}
+
+public class ProgramRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Program"
+    
+    public func trigger(tokens: [Token]) throws -> Bool {
+        return true
+    }
+    
+    public func parse(context: ParseContext) throws -> AbstractExpression {
+        let start = try context.peek()
+        let apiParser = APIRule()
+        var apis = [APIExpression]()
+        var api: AbstractExpression? = nil
+        
+        while true {
+            if context.hasMore() {
+                api = try apiParser.parse(context: context)
+                apis.append(api! as! APIExpression)
+            } else {
+                break
+            }
+        }
+        
+        return ProgramExpression(apis: apis, startToken: start)
+    }
+}
+
 public class APIRule : ParseRule {
     public let name = "Orb.Core.Grammar.API"
     
