@@ -16,7 +16,7 @@ extension OrbitError {
 }
 
 public class WithinExpression : AbstractExpression {
-    let apiRef: TypeIdentifierExpression
+    public let apiRef: TypeIdentifierExpression
     
     init(apiRef: TypeIdentifierExpression, startToken: Token) {
         self.apiRef = apiRef
@@ -52,7 +52,7 @@ class WithinRule : ParseRule {
 }
 
 public class WithExpression : AbstractExpression {
-    let withs: [TypeIdentifierExpression]
+    public let withs: [TypeIdentifierExpression]
     
     init(withs: [TypeIdentifierExpression], startToken: Token) {
         self.withs = withs
