@@ -79,8 +79,8 @@ public protocol Expression : class {
     var startToken: Token { get }
 }
 
-extension Expression {
-    func annotate(annotation: ExpressionAnnotation) {
+public extension Expression {
+    public func annotate(annotation: ExpressionAnnotation) {
         self.annotations.append(annotation)
     }
 }
