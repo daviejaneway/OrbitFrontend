@@ -207,7 +207,7 @@ public class BlockRule : ParseRule {
 }
 
 class UnaryRule : ParseRule {
-    let name = "Orb.Core.Grammar.Unary"
+    let name = "Orb.Core.Grammar.Prefix"
     
     func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
@@ -237,7 +237,7 @@ class UnaryRule : ParseRule {
 }
 
 class BinaryRule : ParseRule {
-    let name = "Orb.Core.Grammar.Binary"
+    let name = "Orb.Core.Grammar.Infix"
 
     let parenthesisedResult: Bool
     

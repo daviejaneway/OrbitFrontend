@@ -493,7 +493,14 @@ class ParseContextTests: XCTestCase {
         
         result = parse(src: "(Orb::Core::Int) foo (x Orb::Core::Int, y Orb::Core::Int) (Orb::Core::Int)", withRule: StaticSignatureRule())
         
-        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertTrue(result is StaticSignatureExpression)
+        XCTAssertEqual(2, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Orb.Core.Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertEqual("Orb.Core.Int", (result as! StaticSignatureExpression).returnType!.value)
+        
+        result = parse(src: "(Orb::Core::Int) + (x Orb::Core::Int, y Orb::Core::Int) (Orb::Core::Int)", withRule: StaticSignatureRule())
+        
+        XCTAssertTrue(result is StaticSignatureExpression)
         XCTAssertEqual(2, (result as! StaticSignatureExpression).parameters.count)
         XCTAssertEqual("Orb.Core.Int", (result as! StaticSignatureExpression).receiverType.value)
         XCTAssertEqual("Orb.Core.Int", (result as! StaticSignatureExpression).returnType!.value)
@@ -502,7 +509,7 @@ class ParseContextTests: XCTestCase {
     func testInstanceSignature() {
         var result = parse(src: "(self Int) foo (x Int, y Real) (Real)", withRule: InstanceSignatureRule())
         
-        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertTrue(result is StaticSignatureExpression)
         XCTAssertEqual(3, (result as! StaticSignatureExpression).parameters.count)
         XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
         XCTAssertEqual("Real", (result as! StaticSignatureExpression).returnType!.value)
@@ -518,6 +525,13 @@ class ParseContextTests: XCTestCase {
         XCTAssertNil((result as! StaticSignatureExpression).returnType)
         
         result = parse(src: "(self Int) foo () ()", withRule: InstanceSignatureRule())
+        
+        XCTAssert(result is StaticSignatureExpression)
+        XCTAssertEqual(1, (result as! StaticSignatureExpression).parameters.count)
+        XCTAssertEqual("Int", (result as! StaticSignatureExpression).receiverType.value)
+        XCTAssertNil((result as! StaticSignatureExpression).returnType)
+        
+        result = parse(src: "(self Int) + () ()", withRule: InstanceSignatureRule())
         
         XCTAssert(result is StaticSignatureExpression)
         XCTAssertEqual(1, (result as! StaticSignatureExpression).parameters.count)

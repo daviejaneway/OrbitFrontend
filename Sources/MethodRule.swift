@@ -26,7 +26,10 @@ public class InstanceSignatureRule : BaseSignatureRule {
         let receiverPair = try PairRule().parse(context: context) as! PairExpression
         _ = try context.expect(type: .RParen)
         
-        let fname = try IdentifierRule().parse(context: context) as! IdentifierExpression
+        let fnameToken = try context.expectAny(types: [.Identifier, .Operator])
+        let fname = IdentifierExpression(value: fnameToken.value, startToken: fnameToken)
+        
+        _ = try context.consume()
         
         // TODO: Generic constraints
         
@@ -69,7 +72,10 @@ public class StaticSignatureRule : BaseSignatureRule {
         
         _ = try context.expect(type: .RParen)
         
-        let fname = try IdentifierRule().parse(context: context) as! IdentifierExpression
+        let fnameToken = try context.expectAny(types: [.Identifier, .Operator])
+        let fname = IdentifierExpression(value: fnameToken.value, startToken: fnameToken)
+        
+        _ = try context.consume()
         
         // TODO: Generic constraints
         
