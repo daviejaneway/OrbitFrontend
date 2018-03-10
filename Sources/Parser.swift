@@ -177,7 +177,7 @@ public class PairExpression : AbstractExpression, NamedExpression, TypedExpressi
 
 public protocol LiteralExpression {}
 
-public class IntLiteralExpression : AbstractExpression, LiteralExpression, ValueExpression, RValueExpression {
+public class IntLiteralExpression : AbstractExpression, LiteralExpression, ValueExpression, RValueExpression, DebuggableExpression {
     public typealias ValueType = Int
     
     public let value: Int
@@ -186,6 +186,10 @@ public class IntLiteralExpression : AbstractExpression, LiteralExpression, Value
         self.value = value
         
         super.init(startToken: startToken)
+    }
+    
+    func dump() -> String {
+        return "\(self.value)"
     }
 }
 
@@ -732,7 +736,11 @@ public class IndexAccessExpression : AbstractExpression, RValueExpression {
     }
 }
 
-public class UnaryExpression : AbstractExpression, ValueExpression, RValueExpression {
+protocol DebuggableExpression {
+    func dump() -> String
+}
+
+public class UnaryExpression : AbstractExpression, ValueExpression, RValueExpression, DebuggableExpression {
     public let value: AbstractExpression
     public let op: Operator
     
@@ -742,9 +750,15 @@ public class UnaryExpression : AbstractExpression, ValueExpression, RValueExpres
         
         super.init(startToken: startToken)
     }
+    
+    func dump() -> String {
+        let v = self.value as! DebuggableExpression
+        
+        return "\(self.op.symbol)\(v.dump())"
+    }
 }
 
-public class BinaryExpression : AbstractExpression, ValueExpression, RValueExpression {
+public class BinaryExpression : AbstractExpression, ValueExpression, RValueExpression, DebuggableExpression {
     public typealias ValueType = (left: AbstractExpression, right: AbstractExpression)
     
     public var value: (left: AbstractExpression, right: AbstractExpression)
@@ -765,22 +779,10 @@ public class BinaryExpression : AbstractExpression, ValueExpression, RValueExpre
     }
     
     func dump() -> String {
-        switch (left, right) {
-            case is (BinaryExpression, BinaryExpression):
-                let l = left as! BinaryExpression
-                let r = right as! BinaryExpression
-                return "(\(l.dump()) \(op.symbol) \(r.dump()))"
-            
-            case is (BinaryExpression, AbstractExpression):
-                let l = left as! BinaryExpression
-                return "(\(l.dump()) \(op.symbol) \(right))"
-            
-            case is (AbstractExpression, BinaryExpression):
-                let r = right as! BinaryExpression
-                return "(\(left) \(op.symbol) \(r.dump()))"
-            
-            default: return "(\(left) \(op.symbol) \(right))"
-        }
+        let l = self.left as! DebuggableExpression
+        let r = self.right as! DebuggableExpression
+        
+        return "(\(l.dump()) \(self.op.symbol) \(r.dump()))"
     }
 }
 

@@ -100,7 +100,7 @@ public class InstanceCallRule : ParseRule {
             return InstanceCallExpression(receiver: receiver, methodName: fname, args: [], startToken: start)
         }
         
-        let arguments = try DelimitedRule(delimiter: .Comma, elementRule: ValueRule()).parse(context: context) as! DelimitedExpression
+        let arguments = try DelimitedRule(delimiter: .Comma, elementRule: ExpressionRule()).parse(context: context) as! DelimitedExpression
         
         _ = try context.expect(type: .RParen)
         
@@ -146,7 +146,7 @@ public class StaticCallRule : ParseRule {
             return StaticCallExpression(receiver: rec, methodName: fname, args: [], startToken: start)
         }
         
-        let arguments = try DelimitedRule(delimiter: .Comma, elementRule: ValueRule()).parse(context: context) as! DelimitedExpression
+        let arguments = try DelimitedRule(delimiter: .Comma, elementRule: ExpressionRule()).parse(context: context) as! DelimitedExpression
         
         _ = try context.expect(type: .RParen)
         
@@ -216,33 +216,38 @@ class UnaryRule : ParseRule {
     }
     
     func parse(context: ParseContext) throws -> AbstractExpression {
-        let opToken = try context.consume()
+        let opToken = try context.peek()
         
         if opToken.type == .LParen {
-            let unaryParser = ValueRule()
-            let unaryExpression = try unaryParser.parse(context: context)
+            _ = try context.consume()
+            
+            let unaryExpression = try parse(context: context)
             
             _ = try context.expect(type: .RParen)
             
             return unaryExpression
         }
         
-        let valueParser = PrimaryRule()
-        let valueExpression = try valueParser.parse(context: context)
+        if opToken.type == .Operator {
+            _ = try context.consume()
+            let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Prefix, token: opToken)
+            
+            return UnaryExpression(value: try parse(context: context), op: op, startToken: opToken)
+        }
         
-        let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Prefix, token: opToken)
+        let valueExpression = try PrimaryRule().parse(context: context)
         
-        return UnaryExpression(value: valueExpression, op: op, startToken: opToken)
+        // Not a unary expression, just a value
+        return valueExpression
     }
 }
 
-class BinaryRule : ParseRule {
+class InfixRule : ParseRule {
     let name = "Orb.Core.Grammar.Infix"
-
-    let parenthesisedResult: Bool
+    let left: AbstractExpression
     
-    init(parenthesisedResult: Bool = false) {
-        self.parenthesisedResult = parenthesisedResult
+    init(left: AbstractExpression) {
+        self.left = left
     }
     
     func trigger(tokens: [Token]) throws -> Bool {
@@ -250,54 +255,67 @@ class BinaryRule : ParseRule {
 
         return [.LParen, .Identifier, .Int, .Real, .Operator].contains(token.type)
     }
+
+    func parse(context: ParseContext) throws -> AbstractExpression {
+        let opToken = try context.expect(type: .Operator)
+        let op = try Operator.lookup(operatorWithSymbol: opToken.value, inPosition: .Infix, token: opToken)
+        let right = try ExpressionRule().parse(context: context)
+        
+        if let lexpr = left as? BinaryExpression, !lexpr.parenthesised {
+            let opRelationship = lexpr.op.relationships[op]
+            
+            if opRelationship == .Greater {
+                let nRight = BinaryExpression(left: lexpr.right, right: right, op: op, startToken: right.startToken)
+                
+                return BinaryExpression(left: lexpr.left, right: nRight, op: lexpr.op, startToken: lexpr.startToken)
+            }
+            
+        } else if let rexpr = right as? BinaryExpression, !rexpr.parenthesised {
+            let opRelationship = rexpr.op.relationships[op]
+            
+            if opRelationship == .Lesser {
+                // Precedence is wrong, rewrite the expr
+                let nLeft = BinaryExpression(left: self.left, right: rexpr.left, op: op, startToken: self.left.startToken)
+                
+                return BinaryExpression(left: nLeft, right: rexpr.right, op: rexpr.op, startToken: rexpr.startToken)
+            }
+        }
+        
+        return BinaryExpression(left: self.left, right: right, op: op, startToken: opToken)
+    }
+}
+
+class ExpressionRule : ParseRule {
+    let name = "Orb.Core.Grammar.Expression"
+    
+    func trigger(tokens: [Token]) throws -> Bool {
+        return true
+    }
     
     func parse(context: ParseContext) throws -> AbstractExpression {
-        // TODO: This is buggy for complex expressions. Needs looking at
         let start = try context.peek()
+        let left: AbstractExpression
         
         if start.type == .LParen {
             _ = try context.consume()
-            let binaryParser = BinaryRule(parenthesisedResult: true)
-            let binaryExpression = try binaryParser.parse(context: context)
+            left = try parse(context: context)
+            
+            if left is BinaryExpression {
+                (left as! BinaryExpression).parenthesised = true
+            }
+            
             _ = try context.expect(type: .RParen)
-            
-            if context.hasMore() {
-                let next = try context.peek()
-                
-                if next.type == .Operator {
-                    _ = try context.consume()
-                    let op2 = try Operator.lookup(operatorWithSymbol: next.value, inPosition: .Infix, token: start)
-                    let rhs2 = try ValueRule().parse(context: context)
-                    
-                    return BinaryExpression(left: binaryExpression, right: rhs2, op: op2, startToken: start)
-                }
-            }
-            
-            return binaryExpression
+        } else {
+            left = try UnaryRule().parse(context: context)
         }
         
-        let lhs = try PrimaryRule().parse(context: context)
-        let next = try context.expect(type: .Operator)
-        let op = try Operator.lookup(operatorWithSymbol: next.value, inPosition: .Infix, token: start)
-        let rhs = try ValueRule().parse(context: context)
+        guard context.hasMore() else { return left }
         
-        let expr = BinaryExpression(left: lhs, right: rhs, op: op, startToken: start)
+        let next = try context.peek()
         
-        expr.parenthesised = parenthesisedResult
+        guard next.type == .Operator else { return left }
         
-        if !(lhs is BinaryExpression) && rhs is BinaryExpression {
-            // Check precedence
-            let rightBin = rhs as! BinaryExpression
-            if !rightBin.parenthesised {
-                if op.relationships[rightBin.op] == .Greater {
-                    let left = BinaryExpression(left: lhs, right: rightBin.left, op: op, startToken: start)
-                    
-                    return BinaryExpression(left: left, right: rightBin.right, op: rightBin.op, startToken: start)
-                }
-            }
-        }
-        
-        return expr
+        return try InfixRule(left: left).parse(context: context)
     }
 }
 
@@ -309,46 +327,32 @@ class PrimaryRule : ParseRule {
     }
 
     func parse(context: ParseContext) throws -> AbstractExpression {
-        guard let result = context.attemptAny(of: [
-            // The order matters!
-            UnaryRule(),
-            InstanceCallRule(),
-            StaticCallRule(),
-            RealLiteralRule(),
-            IntegerLiteralRule(),
-            IdentifierRule(),
-            TypeIdentifierRule()
-        ]) else {
-            throw OrbitError(message: "Expected value expression")
+        let start = try context.peek()
+        
+        if start.type == .LParen {
+            _ = try context.consume()
+            
+            let expr = try parse(context: context)
+            
+            _ = try context.expect(type: .RParen)
+            
+            return expr
         }
-
-        return result
-    }
-}
-
-class ValueRule : ParseRule {
-    let name = "Orb.Core.Grammar.Value"
-    
-    func trigger(tokens: [Token]) throws -> Bool {
-        return true
-    }
-    
-    func parse(context: ParseContext) throws -> AbstractExpression {
+        
         guard let result = context.attemptAny(of: [
             // The order matters!
             BlockRule(),
-            BinaryRule(),
-            UnaryRule(),
             InstanceCallRule(),
             StaticCallRule(),
             RealLiteralRule(),
             IntegerLiteralRule(),
             IdentifierRule(),
-            TypeIdentifierRule()
+            TypeIdentifierRule(),
+            UnaryRule()
         ]) else {
             throw OrbitError(message: "Expected value expression")
         }
-        
+
         return result
     }
 }
@@ -367,7 +371,7 @@ class ReturnRule : ParseRule {
         
         guard start.value == "return" else { throw OrbitError.unexpectedToken(token: start) }
         
-        let value = try ValueRule().parse(context: context)
+        let value = try ExpressionRule().parse(context: context)
         
         return ReturnStatement(value: value, startToken: start)
     }

@@ -579,6 +579,11 @@ class ParseContextTests: XCTestCase {
         XCTAssertTrue(result is ReturnStatement)
         XCTAssertTrue((result as! ReturnStatement).value is BlockExpression)
         
+        result = parse(src: "return Int.add(1, 2) + Int.add(a, b)", withRule: ReturnRule())
+
+        XCTAssertTrue(result is ReturnStatement)
+        XCTAssertTrue((result as! ReturnStatement).value is BinaryExpression)
+        
         _ = parse(src: "return", withRule: ReturnRule(), expectFail: true)
     }
     
@@ -635,14 +640,14 @@ class ParseContextTests: XCTestCase {
     }
     
     func testBinary() {
-        var result = parse(src: "2 + 2", withRule: BinaryRule())
+        var result = parse(src: "2 + 2", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue((result as! BinaryExpression).left is IntLiteralExpression)
         XCTAssertTrue((result as! BinaryExpression).right is IntLiteralExpression)
         XCTAssertEqual(Operator.Addition, (result as! BinaryExpression).op)
         
-        result = parse(src: "(2 + 2)", withRule: BinaryRule())
+        result = parse(src: "(2 + 2)", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue((result as! BinaryExpression).left is IntLiteralExpression)
@@ -651,14 +656,14 @@ class ParseContextTests: XCTestCase {
         
         XCTAssertEqual(4.0, expressionSolver(expr: result!), accuracy: 0.01)
         
-        result = parse(src: "2 + 2 + 2", withRule: BinaryRule())
+        result = parse(src: "2 + 2 + 2", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
         
         XCTAssertEqual(6.0, expressionSolver(expr: result!), accuracy: 0.01)
         
-        result = parse(src: "2 + 2 + 2 + 2", withRule: BinaryRule())
+        result = parse(src: "2 + 2 + 2 + 2", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).left) is IntLiteralExpression)
@@ -667,68 +672,68 @@ class ParseContextTests: XCTestCase {
         
         XCTAssertEqual(8.0, expressionSolver(expr: result!), accuracy: 0.01)
         
-        result = parse(src: "2 + (2 + 2)", withRule: BinaryRule())
+        result = parse(src: "2 + (2 + 2)", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
         
         XCTAssertEqual(6.0, expressionSolver(expr: result!), accuracy: 0.01)
         
-        result = parse(src: "(2 + 2) + 2", withRule: BinaryRule())
+        result = parse(src: "(2 + 2) + 2", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).left) is BinaryExpression)
         
         XCTAssertEqual(6.0, expressionSolver(expr: result!), accuracy: 0.01)
         
-        result = parse(src: "2 * 2 + 2", withRule: BinaryRule())
+        result = parse(src: "2 * 2 + 2", withRule: ExpressionRule())
         
         XCTAssertEqual(6.0, expressionSolver(expr: result!), accuracy: 0.01)
 
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).left) is BinaryExpression)
         
-        result = parse(src: "2 * (2 + 2)", withRule: BinaryRule())
+        result = parse(src: "2 * (2 + 2)", withRule: ExpressionRule())
         
         XCTAssertEqual(8.0, expressionSolver(expr: result!), accuracy: 0.01)
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
         
-        result = parse(src: "2 * 2 + -2 / 3", withRule: BinaryRule())
+        result = parse(src: "2 * 2 + -2 / 3", withRule: ExpressionRule())
         
         XCTAssertEqual(3.333, expressionSolver(expr: result!), accuracy: 0.01)
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
         
-        result = parse(src: "2 * (2 + 2) / 3", withRule: BinaryRule())
+        result = parse(src: "2 * (2 + 2) / 3", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
         
         XCTAssertEqual(2.666, expressionSolver(expr: result!), accuracy: 0.01)
         
-        result = parse(src: "(-5 * -2) - (1 - (5 * 8 / -5))", withRule: BinaryRule())
+        result = parse(src: "(5 * 2 - 1) - 5 * 8 / 5", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
         
         XCTAssertEqual(1.0, expressionSolver(expr: result!), accuracy: 0.01)
         
-        result = parse(src: "(-a * -b) - c - (d * (e / -f))", withRule: BinaryRule())
+        result = parse(src: "(-a * -b) - c - (d * (e / -f))", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).left) is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is BinaryExpression)
         
-        result = parse(src: "A & B", withRule: BinaryRule())
+        result = parse(src: "A & B", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).left) is TypeIdentifierExpression)
         XCTAssertTrue(((result as! BinaryExpression).right) is TypeIdentifierExpression)
         
-        result = parse(src: "A | B", withRule: BinaryRule())
+        result = parse(src: "A | B", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue(((result as! BinaryExpression).left) is TypeIdentifierExpression)
@@ -739,12 +744,13 @@ class ParseContextTests: XCTestCase {
     
     func testProgram() {
         let result = parse(src:
-            "api Main {" +
-            "   type Int()" +
-            
-            "   (Int) add (a Int, b Int) (Int) {" +
-            "       return 1" +
-            "   }" +
+            "api Main { " +
+            "   (Int) add (a Int, b Int) (Int) { " +
+            "       return Int.add(a, b) + Int.add(Int.add(a, b), a) " +
+            "   } " +
+            "   (Int) add2 (a Int, b Int) (Int) { " +
+            "       return Int.add(a, b) " +
+            "   } " +
             "}"
             
         , withRule: ProgramRule())
