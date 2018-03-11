@@ -141,6 +141,18 @@ public class IdentifierExpression : AbstractExpression, LValueExpression, RValue
     }
 }
 
+public class OperatorExpression : AbstractExpression, RValueExpression, ValueExpression {
+    public typealias ValueType = Operator
+    
+    public let value: Operator
+    
+    init(symbol: String, position: OperatorPosition, startToken: Token) {
+        self.value = Operator(symbol: symbol, position: position)
+        
+        super.init(startToken: startToken)
+    }
+}
+
 public class TypeIdentifierExpression : AbstractExpression, TypedExpression, ValueExpression, RValueExpression {
     public typealias ValueType = String
     
@@ -427,7 +439,9 @@ public class Operator : Hashable, Equatable {
         let ops = self.operators.filter { $0.symbol == operatorWithSymbol && $0.position == inPosition }
         
         // Shouldn't be possible to have two operators with the same symbol & position
-        guard ops.count == 1, let op = ops.first else { throw OrbitError.unknownOperator(symbol: operatorWithSymbol, position: inPosition, token: token) }
+        guard ops.count == 1, let op = ops.first else {
+            throw OrbitError.unknownOperator(symbol: operatorWithSymbol, position: inPosition, token: token)
+        }
         
         return op
     }

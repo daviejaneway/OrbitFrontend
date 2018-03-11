@@ -117,6 +117,12 @@ public class ProgramRule : ParseRule {
         
         while true {
             if context.hasMore() {
+                let next = try context.peek()
+                
+                if next.type == .Annotation {
+                    continue
+                }
+                
                 api = try apiParser.parse(context: context)
                 apis.append(api! as! APIExpression)
             } else {

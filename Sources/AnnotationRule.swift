@@ -30,12 +30,11 @@ public class AnnotationRule : ParseRule {
     }
     
     public func parse(context: ParseContext) throws -> AbstractExpression {
-        // Consume '@' symbol
-        let start = try context.consume()
+        let start = try context.peek()
         
-        let nameParser = TypeIdentifierRule()
-        let annotationName = try nameParser.parse(context: context) as! TypeIdentifierExpression
+        try ParserExtensionRunner.runPhaseExtension(parser: context)
         
-        return AnnotationExpression(phaseReference: annotationName, body: annotationName, startToken: start)
+        return AbstractExpression(startToken: start)
+        //return AnnotationExpression(phaseReference: annotationName, body: annotationName, startToken: start)
     }
 }

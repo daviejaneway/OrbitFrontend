@@ -25,11 +25,64 @@ public protocol ParseRule {
     func parse(context: ParseContext) throws -> AbstractExpression
 }
 
-public class ParseContext : CompilationPhase {
+protocol PhaseExtension {
+    var extensionName: String { get }
+    var parameterParseRules: [ParseRule] { get }
+    
+    func execute<T: CompilationPhase>(phase: T, parameters: [AbstractExpression]) throws
+}
+
+protocol ExtendablePhase : CompilationPhase {
+    var extensions: [String : PhaseExtension] { get }
+    var phaseName: String { get }
+}
+
+class RegisterInfixOperator : PhaseExtension {
+    let extensionName = "RegisterInfixOperator"
+    let parameterParseRules: [ParseRule] = [
+        OperatorRule(position: .Infix)
+    ]
+    
+    func execute<T>(phase: T, parameters: [AbstractExpression]) throws where T : CompilationPhase {
+        guard let op = parameters.first as? OperatorExpression else {
+            throw OrbitError(message: "Expected operator symbol as parameter to PhaseExtension '\(self.extensionName)'")
+        }
+        
+        try Operator.declare(op: op.value, token: op.startToken)
+    }
+}
+
+class ParserExtensionRunner {
+    static func runPhaseExtension(parser: ParseContext) throws {
+        _ = try parser.expect(type: .Annotation)
+        let extensionName = try TypeIdentifierRule().parse(context: parser) as! TypeIdentifierExpression
+        
+        guard let ext = parser.extensions[extensionName.value] else {
+            throw OrbitError(message: "Unknown PhaseExtension '\(extensionName.value)'")
+        }
+        
+        _ = try parser.expect(type: .LParen)
+        
+        // TODO: This should parse all rules as a delimited list
+        let rule = ext.parameterParseRules[0]
+        let param = try rule.parse(context: parser)
+        
+        _ = try parser.expect(type: .RParen)
+        
+        try ext.execute(phase: parser, parameters: [param])
+    }
+}
+
+public class ParseContext : ExtendablePhase {
     public typealias InputType = [Token]
     public typealias OutputType = AbstractExpression
     
     private let rules: [ParseRule]
+    
+    let phaseName = "Orb::Compiler::Parser"
+    var extensions: [String : PhaseExtension] = [
+        "Orb.Compiler.Parser.RegisterInfixOperator": RegisterInfixOperator()
+    ]
     
     internal let callingConvention: CallingConvention
     internal var tokens: [Token] = []

@@ -83,19 +83,16 @@ class ParseContextTests: XCTestCase {
         XCTAssertNil(result)
     }
     
-//    func testAnnotations() {
-//        var result = parse(src: "@Foo", withRule: AnnotationRule())
-//        
-//        XCTAssertTrue(result is AnnotationExpression)
-//        XCTAssertEqual("Foo", (result as! AnnotationExpression).phaseReference.value)
-//
-//        result = parse(src: "@Foo(Orb::Core)", withRule: AnnotationRule())
-//
-//        XCTAssertTrue(result is AnnotationExpression)
-//        XCTAssertTrue((result as! AnnotationExpression).body is TypeIdentifierExpression)
-//        XCTAssertEqual("Foo", (result as! AnnotationExpression).phaseReference.value)
-//        XCTAssertEqual("Orb.Core", ((result as! AnnotationExpression).body as! TypeIdentifierExpression).value)
-//    }
+    func testAnnotations() {
+        XCTAssertThrowsError(try Operator.lookup(operatorWithSymbol: "?", inPosition: .Infix, token: Token(type: .Operator, value: "?")))
+        
+        _ = parse(src: "@Orb::Compiler::Parser::RegisterInfixOperator(?)", withRule: AnnotationRule())
+        
+        let op = try! Operator.lookup(operatorWithSymbol: "?", inPosition: .Infix, token: Token(type: .Operator, value: "?"))
+        
+        XCTAssertEqual("?", op.symbol)
+        XCTAssertEqual(.Infix, op.position)
+    }
     
     func testEmptyAPI() {
         let result = parse(src: "api Foo {}", withRule: APIRule())
@@ -641,6 +638,13 @@ class ParseContextTests: XCTestCase {
     
     func testBinary() {
         var result = parse(src: "2 + 2", withRule: ExpressionRule())
+        
+        XCTAssertTrue(result is BinaryExpression)
+        XCTAssertTrue((result as! BinaryExpression).left is IntLiteralExpression)
+        XCTAssertTrue((result as! BinaryExpression).right is IntLiteralExpression)
+        XCTAssertEqual(Operator.Addition, (result as! BinaryExpression).op)
+        
+        result = parse(src: "2 ? 2", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)
         XCTAssertTrue((result as! BinaryExpression).left is IntLiteralExpression)

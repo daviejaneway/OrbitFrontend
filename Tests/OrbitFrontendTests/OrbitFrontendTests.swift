@@ -199,6 +199,10 @@ class OrbitFrontendTests : XCTestCase {
             Token(type: .Operator, value: "*")
         ])
         
+        OrbTestLex(src: "?", expectedTokens: [
+            Token(type: .Operator, value: "?")
+        ])
+        
         OrbTestLex(src: "++ * + - **", expectedTokens: [
             Token(type: .Operator, value: "++"),
             Token(type: .Operator, value: "*"),

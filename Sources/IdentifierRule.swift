@@ -23,3 +23,24 @@ public class IdentifierRule : ParseRule {
         return IdentifierExpression(value: id.value, startToken: id)
     }
 }
+
+public class OperatorRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Operator"
+    
+    private let position: OperatorPosition
+    
+    init(position: OperatorPosition) {
+        self.position = position
+    }
+    
+    public func trigger(tokens: [Token]) throws -> Bool {
+        guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
+        
+        return token.type == .Operator
+    }
+    
+    public func parse(context: ParseContext) throws -> AbstractExpression {
+        let op = try context.expect(type: .Operator)
+        return OperatorExpression(symbol: op.value, position: self.position, startToken: op)
+    }
+}
