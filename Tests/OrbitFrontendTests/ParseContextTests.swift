@@ -644,13 +644,6 @@ class ParseContextTests: XCTestCase {
         XCTAssertTrue((result as! BinaryExpression).right is IntLiteralExpression)
         XCTAssertEqual(Operator.Addition, (result as! BinaryExpression).op)
         
-        result = parse(src: "2 ? 2", withRule: ExpressionRule())
-        
-        XCTAssertTrue(result is BinaryExpression)
-        XCTAssertTrue((result as! BinaryExpression).left is IntLiteralExpression)
-        XCTAssertTrue((result as! BinaryExpression).right is IntLiteralExpression)
-        XCTAssertEqual(Operator.Addition, (result as! BinaryExpression).op)
-        
         result = parse(src: "(2 + 2)", withRule: ExpressionRule())
         
         XCTAssertTrue(result is BinaryExpression)

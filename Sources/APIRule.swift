@@ -120,6 +120,8 @@ public class ProgramRule : ParseRule {
                 let next = try context.peek()
                 
                 if next.type == .Annotation {
+                    try ParserExtensionRunner.runPhaseExtension(parser: context)
+                    
                     continue
                 }
                 
