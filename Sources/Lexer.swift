@@ -105,6 +105,12 @@ public struct Token {
     }
 }
 
+public extension OrbitWarning {
+    public init(token: Token, message: String) {
+        self.message = "\(message)\n\t\(token.position)"
+    }
+}
+
 typealias TokenGenerator = (TokenType, String) -> Token
 
 var expressions = [String: NSRegularExpression]()
