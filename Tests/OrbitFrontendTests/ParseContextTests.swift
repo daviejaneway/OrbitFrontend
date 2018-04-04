@@ -51,7 +51,7 @@ class ParseContextTests: XCTestCase {
         let context = ParseContext(callingConvention: LLVMCallingConvention(), rules: [])
         context.tokens = lex(source: "api Test {}")
         
-        let result = context.attemptAny(of: [TypeIdentifierRule(), APIRule()])
+        let result = try! context.attemptAny(of: [TypeIdentifierRule(), APIRule()])
         
         XCTAssertTrue(result is APIExpression)
     }
@@ -92,6 +92,14 @@ class ParseContextTests: XCTestCase {
         
         XCTAssertEqual("?", op.symbol)
         XCTAssertEqual(.Infix, op.position)
+        
+        XCTAssertNil(Operator.Multiplication.relationships[op])
+        
+        _ = parse(src: "@Orb::Compiler::Parser::SetInfixRelationship(?, *, Greater)", withRule: AnnotationRule())
+        
+        let rel = Operator.Multiplication.relationships[op]
+        
+        XCTAssertEqual(.Greater, rel!)
     }
     
     func testEmptyAPI() {
@@ -754,6 +762,15 @@ class ParseContextTests: XCTestCase {
         
         XCTAssertTrue(result is ProgramExpression)
         XCTAssertEqual(1, (result as! ProgramExpression).apis.count)
+        
+        // This one fails because ? has not been defined as an infix operator
+        _ = parse(src:
+            "api Main { " +
+            "   (Int) add (a Int, b Int) (Int) { " +
+            "       return a ? b " +
+            "   } " +
+            "}"
+        , withRule: ProgramRule(), expectFail: true)
     }
     
     private func expressionSolver(expr: IntLiteralExpression) -> Float {

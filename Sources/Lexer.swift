@@ -135,12 +135,20 @@ public class Lexer : CompilationPhase {
     public typealias InputType = String
     public typealias OutputType = [Token]
     
+    public let session: OrbitSession
+    
 	private (set) var currentPosition = SourcePosition(line: 0, character: 0)
 	private var idx = 0
     
     private(set) var rules: [TokenType]
     
-    public init(rules: [TokenType] = TokenType.base) {
+    public required init(session: OrbitSession) {
+        self.session = session
+        self.rules = TokenType.base
+    }
+    
+    public init(session: OrbitSession, rules: [TokenType] = TokenType.base) {
+        self.session = session
         self.rules = rules
     }
     

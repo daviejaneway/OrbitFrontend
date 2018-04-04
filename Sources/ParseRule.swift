@@ -32,6 +32,14 @@ protocol PhaseExtension {
     func execute<T: CompilationPhase>(phase: T, parameters: [AbstractExpression]) throws
 }
 
+extension PhaseExtension {
+    func verify(parameters: [AbstractExpression]) throws {
+        guard self.parameterParseRules.count == parameters.count else {
+            throw OrbitError(message: "Phase extension '\(self.extensionName)' expects \(self.parameterParseRules.count) parameters, found \(parameters.count)")
+        }
+    }
+}
+
 protocol ExtendablePhase : CompilationPhase {
     var extensions: [String : PhaseExtension] { get }
     var phaseName: String { get }
@@ -44,11 +52,40 @@ class RegisterInfixOperator : PhaseExtension {
     ]
     
     func execute<T>(phase: T, parameters: [AbstractExpression]) throws where T : CompilationPhase {
+        try self.verify(parameters: parameters)
+        
         guard let op = parameters.first as? OperatorExpression else {
             throw OrbitError(message: "Expected operator symbol as parameter to PhaseExtension '\(self.extensionName)'")
         }
         
         try Operator.declare(op: op.value, token: op.startToken)
+    }
+}
+
+class SetInfixRelationship : PhaseExtension {
+    let extensionName = "SetInfixRelationship"
+    let parameterParseRules: [ParseRule] = [
+        OperatorRule(position: .Infix), OperatorRule(position: .Infix), TypeIdentifierRule()
+    ]
+
+    func execute<T>(phase: T, parameters: [AbstractExpression]) throws where T : CompilationPhase {
+        try self.verify(parameters: parameters)
+        
+        guard let op1 = parameters.first as? OperatorExpression else {
+            throw OrbitError(message: "Expected Operator expression as first parameter to phase extension '\(self.extensionName)'")
+        }
+        
+        guard let op2 = parameters[1] as? OperatorExpression else {
+            throw OrbitError(message: "Expected Operator expression as second parameter to phase extension '\(self.extensionName)'")
+        }
+        
+        guard let p = parameters[2] as? TypeIdentifierExpression else {
+            throw OrbitError(message: "Expected Operator expression as final parameter to phase extension '\(self.extensionName)'")
+        }
+        
+        let prec = OperatorPrecedence(str: p.value)!
+        
+        try op1.value.defineRelationship(other: op2.value, precedence: prec)
     }
 }
 
@@ -63,13 +100,28 @@ class ParserExtensionRunner {
         
         _ = try parser.expect(type: .LParen)
         
-        // TODO: This should parse all rules as a delimited list
-        let rule = ext.parameterParseRules[0]
-        let param = try rule.parse(context: parser)
+        var params = [AbstractExpression]()
+        
+        var next = try parser.peek()
+        
+        var idx = 0
+        while next.type != .RParen {
+            let rule = ext.parameterParseRules[idx]
+            let param = try rule.parse(context: parser)
+            
+            params.append(param)
+            
+            idx += 1
+            next = try parser.peek()
+            
+            if next.type != .RParen {
+                _ = try parser.expect(type: .Comma)
+            }
+        }
         
         _ = try parser.expect(type: .RParen)
         
-        try ext.execute(phase: parser, parameters: [param])
+        try ext.execute(phase: parser, parameters: params)
     }
 }
 
@@ -77,23 +129,32 @@ public class ParseContext : ExtendablePhase {
     public typealias InputType = [Token]
     public typealias OutputType = AbstractExpression
     
+    public let session: OrbitSession
     private let rules: [ParseRule]
     
     let phaseName = "Orb::Compiler::Parser"
     var extensions: [String : PhaseExtension] = [
-        "Orb.Compiler.Parser.RegisterInfixOperator": RegisterInfixOperator()
+        "Orb.Compiler.Parser.RegisterInfixOperator": RegisterInfixOperator(),
+        "Orb.Compiler.Parser.SetInfixRelationship": SetInfixRelationship()
     ]
     
     internal let callingConvention: CallingConvention
     internal var tokens: [Token] = []
     
-    public init(callingConvention: CallingConvention, rules: [ParseRule]) {
+    public required init(session: OrbitSession) {
+        self.session = session
+        self.callingConvention = LLVMCallingConvention()
+        self.rules = []
+    }
+    
+    public init(session: OrbitSession, callingConvention: CallingConvention, rules: [ParseRule]) {
+        self.session = session
         self.callingConvention = callingConvention
         self.rules = rules
     }
     
-    public static func bootstrapParser() -> ParseContext {
-        return ParseContext(callingConvention: LLVMCallingConvention(), rules: [
+    public static func bootstrapParser(session: OrbitSession) -> ParseContext {
+        return ParseContext(session: session, callingConvention: LLVMCallingConvention(), rules: [
             ProgramRule()
         ])
     }
@@ -165,7 +226,7 @@ public class ParseContext : ExtendablePhase {
         return nil
     }
     
-    func attemptAny(of: [ParseRule]) -> AbstractExpression? {
+    func attemptAny(of: [ParseRule], propagateError: Bool = false) throws -> AbstractExpression? {
         let tokensCopy = self.tokens
         
         var result: AbstractExpression
@@ -175,8 +236,12 @@ public class ParseContext : ExtendablePhase {
                 
                 // If we get here, this parse rule succeeded
                 return result
-            } catch {
+            } catch let ex {
                 self.tokens = tokensCopy
+                
+                if propagateError {
+                    throw ex
+                }
             }
         }
         

@@ -111,7 +111,7 @@ public class SignatureRule : BaseSignatureRule {
     public let name = "Orb.Core.Grammar.Signature"
     
     public func parse(context: ParseContext) throws -> AbstractExpression {
-        guard let expr = context.attemptAny(of: [StaticSignatureRule(), InstanceSignatureRule()]) else {
+        guard let expr = try context.attemptAny(of: [StaticSignatureRule(), InstanceSignatureRule()]) else {
             throw OrbitError(message: "Expected signature")
         }
         

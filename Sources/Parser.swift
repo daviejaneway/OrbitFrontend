@@ -348,6 +348,16 @@ public enum OperatorPrecedence {
     case Greater
     case Lesser
     
+    init?(str: String) {
+        switch str {
+            case "Equal": self = .Equal
+            case "Lesser": self = .Lesser
+            case "Greater": self = .Greater
+            
+            default: return nil
+        }
+    }
+    
     func opposite() -> OperatorPrecedence {
         switch self {
             case .Equal: return .Equal

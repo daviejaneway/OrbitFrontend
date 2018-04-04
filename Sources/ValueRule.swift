@@ -182,7 +182,8 @@ public class BlockRule : ParseRule {
         
         var next = try context.peek()
         while next.type != .RBrace {
-            guard let statement = context.attemptAny(of: [StatementRule(), ReturnRule()]) else {
+            
+            guard let statement = try context.attemptAny(of: [StatementRule(), ReturnRule()], propagateError: true) else {
                 throw OrbitError.unexpectedToken(token: next)
             }
             
@@ -262,7 +263,7 @@ class InfixRule : ParseRule {
         let right = try ExpressionRule().parse(context: context)
         
         if let lexpr = left as? BinaryExpression, !lexpr.parenthesised {
-            let opRelationship = lexpr.op.relationships[op]
+            let opRelationship = lexpr.op.relationships[op] ?? .Equal
             
             if opRelationship == .Greater {
                 let nRight = BinaryExpression(left: lexpr.right, right: right, op: op, startToken: right.startToken)
@@ -271,7 +272,7 @@ class InfixRule : ParseRule {
             }
             
         } else if let rexpr = right as? BinaryExpression, !rexpr.parenthesised {
-            let opRelationship = rexpr.op.relationships[op]
+            let opRelationship = rexpr.op.relationships[op] ?? .Equal
             
             if opRelationship == .Lesser {
                 // Precedence is wrong, rewrite the expr
@@ -339,7 +340,7 @@ class PrimaryRule : ParseRule {
             return expr
         }
         
-        guard let result = context.attemptAny(of: [
+        guard let result = try context.attemptAny(of: [
             // The order matters!
             BlockRule(),
             InstanceCallRule(),
@@ -385,7 +386,7 @@ class StatementRule : ParseRule {
     }
     
     func parse(context: ParseContext) throws -> AbstractExpression {
-        guard let result = context.attemptAny(of: [
+        guard let result = try context.attemptAny(of: [
             // The order matters!
             DeferRule(),
             InstanceCallRule(),
