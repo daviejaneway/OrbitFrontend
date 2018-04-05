@@ -17,7 +17,7 @@ class ParseContextTests: XCTestCase {
     }
     
     func lex(source: String) -> [Token] {
-        let lexer = Lexer()
+        let lexer = Lexer(session: OrbitFrontendTests.session)
         
         do {
             return try lexer.execute(input: source)
@@ -31,7 +31,7 @@ class ParseContextTests: XCTestCase {
     func parse(src: String, withRule: ParseRule, expectFail: Bool = false) -> AbstractExpression? {
         do {
             let tokens = lex(source: src)
-            let context = ParseContext(callingConvention: LLVMCallingConvention(), rules: [])
+            let context = ParseContext(session: OrbitFrontendTests.session, callingConvention: LLVMCallingConvention(), rules: [])
             
             context.tokens = tokens
             
@@ -48,7 +48,7 @@ class ParseContextTests: XCTestCase {
     }
     
     func testAttemptAny() {
-        let context = ParseContext(callingConvention: LLVMCallingConvention(), rules: [])
+        let context = ParseContext(session: OrbitFrontendTests.session, callingConvention: LLVMCallingConvention(), rules: [])
         context.tokens = lex(source: "api Test {}")
         
         let result = try! context.attemptAny(of: [TypeIdentifierRule(), APIRule()])
@@ -86,20 +86,20 @@ class ParseContextTests: XCTestCase {
     func testAnnotations() {
         XCTAssertThrowsError(try Operator.lookup(operatorWithSymbol: "?", inPosition: .Infix, token: Token(type: .Operator, value: "?")))
         
-        _ = parse(src: "@Orb::Compiler::Parser::RegisterInfixOperator(?)", withRule: AnnotationRule())
+        var result = parse(src: "@Orb::Compiler::Parser::RegisterInfixOperator()", withRule: AnnotationRule())
         
-        let op = try! Operator.lookup(operatorWithSymbol: "?", inPosition: .Infix, token: Token(type: .Operator, value: "?"))
+        XCTAssertTrue(result is AnnotationExpression)
+        XCTAssertEqual(0, (result as! AnnotationExpression).parameters.count)
         
-        XCTAssertEqual("?", op.symbol)
-        XCTAssertEqual(.Infix, op.position)
+        result = parse(src: "@Orb::Compiler::Parser::RegisterInfixOperator", withRule: AnnotationRule())
         
-        XCTAssertNil(Operator.Multiplication.relationships[op])
+        XCTAssertTrue(result is AnnotationExpression)
+        XCTAssertEqual(0, (result as! AnnotationExpression).parameters.count)
         
-        _ = parse(src: "@Orb::Compiler::Parser::SetInfixRelationship(?, *, Greater)", withRule: AnnotationRule())
+        result = parse(src: "@Orb::Compiler::Parser::SetInfixRelationship(A, B, C)", withRule: AnnotationRule())
         
-        let rel = Operator.Multiplication.relationships[op]
-        
-        XCTAssertEqual(.Greater, rel!)
+        XCTAssertTrue(result is AnnotationExpression)
+        XCTAssertEqual(3, (result as! AnnotationExpression).parameters.count)
     }
     
     func testEmptyAPI() {
@@ -749,6 +749,8 @@ class ParseContextTests: XCTestCase {
     
     func testProgram() {
         let result = parse(src:
+            "@Foo::Bar::Annotation " +
+            "@Foo::Bar::Annotation2(A, B) " +
             "api Main { " +
             "   (Int) add (a Int, b Int) (Int) { " +
             "       return Int.add(a, b) + Int.add(Int.add(a, b), a) " +
@@ -762,6 +764,7 @@ class ParseContextTests: XCTestCase {
         
         XCTAssertTrue(result is ProgramExpression)
         XCTAssertEqual(1, (result as! ProgramExpression).apis.count)
+        XCTAssertEqual(2, (result as! ProgramExpression).annotations.count)
         
         // This one fails because ? has not been defined as an infix operator
         _ = parse(src:

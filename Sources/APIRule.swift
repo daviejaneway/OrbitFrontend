@@ -115,12 +115,16 @@ public class ProgramRule : ParseRule {
         var apis = [APIExpression]()
         var api: AbstractExpression? = nil
         
+        let annotationRule = AnnotationRule()
+        var annotations = [AnnotationExpression]()
         while true {
             if context.hasMore() {
                 let next = try context.peek()
                 
                 if next.type == .Annotation {
-                    try ParserExtensionRunner.runPhaseExtension(parser: context)
+                    let annotation = try annotationRule.parse(context: context) as! AnnotationExpression
+                    
+                    annotations.append(annotation)
                     
                     continue
                 }
@@ -132,7 +136,13 @@ public class ProgramRule : ParseRule {
             }
         }
         
-        return ProgramExpression(apis: apis, startToken: start)
+        let program = ProgramExpression(apis: apis, startToken: start)
+        
+        annotations.forEach {
+            program.annotate(annotation: PhaseAnnotation(annotationExpression: $0))
+        }
+        
+        return program
     }
 }
 

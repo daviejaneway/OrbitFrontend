@@ -73,6 +73,10 @@ func nextHashValue() -> Int {
 
 public protocol ExpressionAnnotation {}
 
+public struct PhaseAnnotation : ExpressionAnnotation {
+    public let annotationExpression: AnnotationExpression
+}
+
 public protocol Expression : class {
     var annotations: [ExpressionAnnotation] { get set }
     var hashValue: Int { get }

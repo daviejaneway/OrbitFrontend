@@ -1,12 +1,14 @@
 import XCTest
+import OrbitCompilerUtils
 @testable import OrbitFrontend
 
 class OrbitFrontendTests : XCTestCase {
+    static let session = OrbitSession()
     
     let pos = SourcePosition()
     
     private func OrbTestLex(src: String, expectedTokens: [Token], expectedSourcePosition: SourcePosition? = nil) {
-        let lexer = Lexer()
+        let lexer = Lexer(session: OrbitFrontendTests.session)
         
         let result = try! lexer.execute(input: src)
         
@@ -231,7 +233,7 @@ class OrbitFrontendTests : XCTestCase {
     }
     
     func testLexerInsertRule() {
-        let lexer = Lexer(rules: [TokenType.Whitespace, TokenType.Dot])
+        let lexer = Lexer(session: OrbitFrontendTests.session, rules: [TokenType.Whitespace, TokenType.Dot])
         
         try! lexer.insert(rule: TokenType.Shelf, before: TokenType.Dot)
         

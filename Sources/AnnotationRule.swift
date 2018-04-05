@@ -9,12 +9,12 @@ import Foundation
 import OrbitCompilerUtils
 
 public class AnnotationExpression : AbstractExpression {
-    public let phaseReference: TypeIdentifierExpression
-    public let body: AbstractExpression
+    public let annotationName: TypeIdentifierExpression
+    public let parameters: [AbstractExpression]
     
-    init(phaseReference: TypeIdentifierExpression, body: AbstractExpression, startToken: Token) {
-        self.phaseReference = phaseReference
-        self.body = body
+    init(annotationName: TypeIdentifierExpression, parameters: [AbstractExpression], startToken: Token) {
+        self.annotationName = annotationName
+        self.parameters = parameters
         
         super.init(startToken: startToken)
     }
@@ -32,9 +32,46 @@ public class AnnotationRule : ParseRule {
     public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.peek()
         
-        try ParserExtensionRunner.runPhaseExtension(parser: context)
+        _ = try context.expect(type: .Annotation)
         
-        return AbstractExpression(startToken: start)
-        //return AnnotationExpression(phaseReference: annotationName, body: annotationName, startToken: start)
+        let annotationName = try TypeIdentifierRule().parse(context: context) as! TypeIdentifierExpression
+        
+        guard context.hasMore() else {
+            return AnnotationExpression(annotationName: annotationName, parameters: [], startToken: start)
+        }
+        
+        var next = try context.peek()
+        
+        if next.type != .LParen {
+            // Assume we're calling a phase annotation without params
+            // e.g. @Orb::Compiler::LLVM::Bootstrap
+            return AnnotationExpression(annotationName: annotationName, parameters: [], startToken: start)
+        }
+        
+        _ = try context.expect(type: .LParen)
+        
+        var params = [AbstractExpression]()
+        
+        next = try context.peek()
+        
+        var idx = 0
+        let paramRule = ExpressionRule()
+        while next.type != .RParen {
+            
+            let param = try paramRule.parse(context: context)
+            
+            params.append(param)
+            
+            idx += 1
+            next = try context.peek()
+            
+            if next.type != .RParen {
+                _ = try context.expect(type: .Comma)
+            }
+        }
+        
+        _ = try context.expect(type: .RParen)
+        
+        return AnnotationExpression(annotationName: annotationName, parameters: params, startToken: start)
     }
 }
