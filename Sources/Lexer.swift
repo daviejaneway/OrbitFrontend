@@ -35,44 +35,44 @@ public struct TokenType : Equatable {
         self.ignoreWhitespace = ignoreWhitespace
     }
     
-    static let Real = TokenType(name: "Real", pattern: "[0-9]+\\.[0-9]+")
-    static let Int = TokenType(name: "Int", pattern: "[0-9]+")
+    public static let Real = TokenType(name: "Real", pattern: "[0-9]+\\.[0-9]+")
+    public static let Int = TokenType(name: "Int", pattern: "[0-9]+")
     
-    static let String = TokenType(name: "String", pattern: "\"(\\\\(n|t|r|0|\")|(\\\\u[a-fA-F0-9]{1,8})|[^\"])*\"")
+    public static let String = TokenType(name: "String", pattern: "\"(\\\\(n|t|r|0|\")|(\\\\u[a-fA-F0-9]{1,8})|[^\"])*\"")
     
-    static let DoubleQuote = TokenType(name: "DoubleQuote", pattern: "\"", ignoreWhitespace: true)
-    static let Escape = TokenType(name: "Escape", pattern: "\\\\(\\|n|t|r|0|\")")
-    static let UnicodeEscape = TokenType(name: "UnicodeEscape", pattern: "\\\\u[a-fA-F0-9]{1,8}")
+    public static let DoubleQuote = TokenType(name: "DoubleQuote", pattern: "\"", ignoreWhitespace: true)
+    public static let Escape = TokenType(name: "Escape", pattern: "\\\\(\\|n|t|r|0|\")")
+    public static let UnicodeEscape = TokenType(name: "UnicodeEscape", pattern: "\\\\u[a-fA-F0-9]{1,8}")
     
-    static let Identifier = TokenType(name: "Identifier", pattern: "[a-z_]+[a-zA-Z0-9_]*")
-    static let TypeIdentifier = TokenType(name: "TypeIdentifier", pattern: "([A-Z]+[a-zA-Z0-9_]*)(::[A-Z]+[a-zA-Z0-9_]*)*")
-    static let Colon = TokenType(name: "Colon", pattern: "\\:")
-    static let Comma = TokenType(name: "Comma", pattern: "\\,")
-    static let Shelf = TokenType(name: "Shelf", pattern: "\\.\\.\\.")
-    static let Dot = TokenType(name: "Dot", pattern: "\\.")
+    public static let Identifier = TokenType(name: "Identifier", pattern: "[a-z_]+[a-zA-Z0-9_]*")
+    public static let TypeIdentifier = TokenType(name: "TypeIdentifier", pattern: "([A-Z]+[a-zA-Z0-9_]*)(::[A-Z]+[a-zA-Z0-9_]*)*")
+    public static let Colon = TokenType(name: "Colon", pattern: "\\:")
+    public static let Comma = TokenType(name: "Comma", pattern: "\\,")
+    public static let Shelf = TokenType(name: "Shelf", pattern: "\\.\\.\\.")
+    public static let Dot = TokenType(name: "Dot", pattern: "\\.")
     
-    static let Keyword = TokenType(name: "Keyword", pattern: "(api|type|return|debug|within|with|trait|defer|constraint)")
+    public static let Keyword = TokenType(name: "Keyword", pattern: "(api|type|return|debug|within|with|trait|defer|constraint)")
     
-    static let LParen = TokenType(name: "LParen", pattern: "\\(")
-    static let RParen = TokenType(name: "RParen", pattern: "\\)")
+    public static let LParen = TokenType(name: "LParen", pattern: "\\(")
+    public static let RParen = TokenType(name: "RParen", pattern: "\\)")
     
-    static let LBracket = TokenType(name: "LBracket", pattern: "\\[")
-    static let RBracket = TokenType(name: "RBracket", pattern: "\\]")
+    public static let LBracket = TokenType(name: "LBracket", pattern: "\\[")
+    public static let RBracket = TokenType(name: "RBracket", pattern: "\\]")
     
-    static let LBrace = TokenType(name: "LBrace", pattern: "\\{")
-    static let RBrace = TokenType(name: "RBrace", pattern: "\\}")
+    public static let LBrace = TokenType(name: "LBrace", pattern: "\\{")
+    public static let RBrace = TokenType(name: "RBrace", pattern: "\\}")
     
-    static let LAngle = TokenType(name: "LAngle", pattern: "\\<")
-    static let RAngle = TokenType(name: "RAngle", pattern: "\\>")
+    public static let LAngle = TokenType(name: "LAngle", pattern: "\\<")
+    public static let RAngle = TokenType(name: "RAngle", pattern: "\\>")
     
-    static let Delimiter = TokenType(name: "Delimiter", pattern: "[\\(\\)\\{\\}\\<\\>\\[\\]]")
+    public static let Delimiter = TokenType(name: "Delimiter", pattern: "[\\(\\)\\{\\}\\<\\>\\[\\]]")
     
-    static let Assignment = TokenType(name: "Assignment", pattern: "\\=")
-    static let Operator = TokenType(name: "Operator", pattern: "[\\+\\-\\*\\/\\^\\!\\?\\%\\&\\<\\>\\|]+")
+    public static let Assignment = TokenType(name: "Assignment", pattern: "\\=")
+    public static let Operator = TokenType(name: "Operator", pattern: "[\\+\\-\\*\\/\\^\\!\\?\\%\\&\\<\\>\\|]+")
     
-    static let Annotation = TokenType(name: "Annotation", pattern: "@")
+    public static let Annotation = TokenType(name: "Annotation", pattern: "@")
     
-    static let Whitespace = TokenType(name: "Whitespace", pattern: "[ \t\n\r]")
+    public static let Whitespace = TokenType(name: "Whitespace", pattern: "[ \t\n\r]")
     
     public static func ==(lhs: TokenType, rhs: TokenType) -> Bool {
         return lhs.name == rhs.name
