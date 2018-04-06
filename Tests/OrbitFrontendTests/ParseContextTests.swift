@@ -28,10 +28,10 @@ class ParseContextTests: XCTestCase {
         return []
     }
     
-    func parse(src: String, withRule: ParseRule, expectFail: Bool = false) -> AbstractExpression? {
+    func parse(src: String, withRule: ParseRule, expectFail: Bool = false, skipUnexpected: Bool = false) -> AbstractExpression? {
         do {
             let tokens = lex(source: src)
-            let context = ParseContext(session: OrbitFrontendTests.session, callingConvention: LLVMCallingConvention(), rules: [])
+            let context = ParseContext(session: OrbitFrontendTests.session, callingConvention: LLVMCallingConvention(), rules: [], skipUnexpected: skipUnexpected)
             
             context.tokens = tokens
             
@@ -774,6 +774,19 @@ class ParseContextTests: XCTestCase {
             "   } " +
             "}"
         , withRule: ProgramRule(), expectFail: true)
+        
+        // Test skipUnexpected
+        let partial = parse(src:
+            "@TestAnnotation() " +
+            "api Main { " +
+                "   (Int) add (a Int, b Int) (Int) { " +
+                "       return a ? b " +
+                "   } " +
+            "}"
+            , withRule: AnnotationRule(), expectFail: false, skipUnexpected: true)
+        
+        XCTAssertNotNil(partial)
+        XCTAssertTrue(partial! is AnnotationExpression)
     }
     
     private func expressionSolver(expr: IntLiteralExpression) -> Float {

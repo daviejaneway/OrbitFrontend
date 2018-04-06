@@ -132,6 +132,7 @@ public protocol ExtendablePhase : CompilationPhase {
 //}
 
 public class ParseContext : ExtendablePhase {
+    
     public typealias InputType = [Token]
     public typealias OutputType = AbstractExpression
     
@@ -147,16 +148,20 @@ public class ParseContext : ExtendablePhase {
     internal let callingConvention: CallingConvention
     internal var tokens: [Token] = []
     
+    private let skipUnexpected: Bool
+    
     public required init(session: OrbitSession) {
         self.session = session
         self.callingConvention = LLVMCallingConvention()
         self.rules = []
+        self.skipUnexpected = false
     }
     
-    public init(session: OrbitSession, callingConvention: CallingConvention, rules: [ParseRule]) {
+    public init(session: OrbitSession, callingConvention: CallingConvention, rules: [ParseRule], skipUnexpected: Bool = false) {
         self.session = session
         self.callingConvention = callingConvention
         self.rules = rules
+        self.skipUnexpected = skipUnexpected
     }
     
     public static func bootstrapParser(session: OrbitSession) -> ParseContext {
@@ -261,6 +266,15 @@ public class ParseContext : ExtendablePhase {
         
         while self.hasMore() {
             var validRules = try self.rules.filter { try $0.trigger(tokens: self.tokens) }
+            
+            if self.skipUnexpected && validRules.count != 1 {
+                // Dirty hack that allows us to parse specific parts of source
+                if self.hasMore() {
+                    _ = try self.consume()
+                }
+                
+                continue
+            }
             
             guard validRules.count > 0 else {
                 // There are no parse rules for this token, can't continue
