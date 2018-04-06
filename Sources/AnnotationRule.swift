@@ -23,6 +23,8 @@ public class AnnotationExpression : AbstractExpression {
 public class AnnotationRule : ParseRule {
     public let name = "Orb.Core.Grammar.Annotation"
     
+    public init() {}
+    
     public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
