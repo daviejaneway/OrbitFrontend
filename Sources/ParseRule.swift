@@ -25,105 +25,111 @@ public protocol ParseRule {
     func parse(context: ParseContext) throws -> AbstractExpression
 }
 
-protocol PhaseExtension {
+public protocol PhaseExtension {
     var extensionName: String { get }
-    var parameterParseRules: [ParseRule] { get }
+    var parameterTypes: [AbstractExpression.Type] { get }
     
-    func execute<T: CompilationPhase>(phase: T, parameters: [AbstractExpression]) throws
+    func execute<T: CompilationPhase>(phase: T, parameterTypes: [AbstractExpression]) throws
 }
 
 extension PhaseExtension {
     func verify(parameters: [AbstractExpression]) throws {
-        guard self.parameterParseRules.count == parameters.count else {
-            throw OrbitError(message: "Phase extension '\(self.extensionName)' expects \(self.parameterParseRules.count) parameters, found \(parameters.count)")
+        guard self.parameterTypes.count == parameters.count else {
+            throw OrbitError(message: "PhaseExtension '\(self.extensionName)' expects \(self.parameterTypes.count) parameters, found \(parameters.count)")
+        }
+        
+        try zip(self.parameterTypes, parameters).enumerated().forEach { elem in
+            guard type(of: elem.element.1) == elem.element.0 else {
+                throw OrbitError(message: "PhaseExtension '\(self.extensionName)' expects parameter of type '\(elem.element.0)' at index \(elem.offset)")
+            }
         }
     }
 }
 
-protocol ExtendablePhase : CompilationPhase {
+public protocol ExtendablePhase : CompilationPhase {
     var extensions: [String : PhaseExtension] { get }
     var phaseName: String { get }
 }
 
-class RegisterInfixOperator : PhaseExtension {
-    let extensionName = "RegisterInfixOperator"
-    let parameterParseRules: [ParseRule] = [
-        OperatorRule(position: .Infix)
-    ]
-    
-    func execute<T>(phase: T, parameters: [AbstractExpression]) throws where T : CompilationPhase {
-        try self.verify(parameters: parameters)
-        
-        guard let op = parameters.first as? OperatorExpression else {
-            throw OrbitError(message: "Expected operator symbol as parameter to PhaseExtension '\(self.extensionName)'")
-        }
-        
-        try Operator.declare(op: op.value, token: op.startToken)
-    }
-}
+//class RegisterInfixOperator : PhaseExtension {
+//    let extensionName = "RegisterInfixOperator"
+//    let parameterParseRules: [ParseRule] = [
+//        OperatorRule(position: .Infix)
+//    ]
+//
+//    func execute<T>(phase: T, parameters: [AbstractExpression]) throws where T : CompilationPhase {
+//        try self.verify(parameters: parameters)
+//
+//        guard let op = parameters.first as? OperatorExpression else {
+//            throw OrbitError(message: "Expected operator symbol as parameter to PhaseExtension '\(self.extensionName)'")
+//        }
+//
+//        try Operator.declare(op: op.value, token: op.startToken)
+//    }
+//}
+//
+//class SetInfixRelationship : PhaseExtension {
+//    let extensionName = "SetInfixRelationship"
+//    let parameterParseRules: [ParseRule] = [
+//        OperatorRule(position: .Infix), OperatorRule(position: .Infix), TypeIdentifierRule()
+//    ]
+//
+//    func execute<T>(phase: T, parameters: [AbstractExpression]) throws where T : CompilationPhase {
+//        try self.verify(parameters: parameters)
+//
+//        guard let op1 = parameters.first as? OperatorExpression else {
+//            throw OrbitError(message: "Expected Operator expression as first parameter to phase extension '\(self.extensionName)'")
+//        }
+//
+//        guard let op2 = parameters[1] as? OperatorExpression else {
+//            throw OrbitError(message: "Expected Operator expression as second parameter to phase extension '\(self.extensionName)'")
+//        }
+//
+//        guard let p = parameters[2] as? TypeIdentifierExpression else {
+//            throw OrbitError(message: "Expected Operator expression as final parameter to phase extension '\(self.extensionName)'")
+//        }
+//
+//        let prec = OperatorPrecedence(str: p.value)!
+//
+//        try op1.value.defineRelationship(other: op2.value, precedence: prec)
+//    }
+//}
 
-class SetInfixRelationship : PhaseExtension {
-    let extensionName = "SetInfixRelationship"
-    let parameterParseRules: [ParseRule] = [
-        OperatorRule(position: .Infix), OperatorRule(position: .Infix), TypeIdentifierRule()
-    ]
-
-    func execute<T>(phase: T, parameters: [AbstractExpression]) throws where T : CompilationPhase {
-        try self.verify(parameters: parameters)
-        
-        guard let op1 = parameters.first as? OperatorExpression else {
-            throw OrbitError(message: "Expected Operator expression as first parameter to phase extension '\(self.extensionName)'")
-        }
-        
-        guard let op2 = parameters[1] as? OperatorExpression else {
-            throw OrbitError(message: "Expected Operator expression as second parameter to phase extension '\(self.extensionName)'")
-        }
-        
-        guard let p = parameters[2] as? TypeIdentifierExpression else {
-            throw OrbitError(message: "Expected Operator expression as final parameter to phase extension '\(self.extensionName)'")
-        }
-        
-        let prec = OperatorPrecedence(str: p.value)!
-        
-        try op1.value.defineRelationship(other: op2.value, precedence: prec)
-    }
-}
-
-class ParserExtensionRunner {
-    static func runPhaseExtension(parser: ParseContext) throws {
-        _ = try parser.expect(type: .Annotation)
-        let extensionName = try TypeIdentifierRule().parse(context: parser) as! TypeIdentifierExpression
-        
-        guard let ext = parser.extensions[extensionName.value] else {
-            throw OrbitError(message: "Unknown PhaseExtension '\(extensionName.value)'")
-        }
-        
-        _ = try parser.expect(type: .LParen)
-        
-        var params = [AbstractExpression]()
-        
-        var next = try parser.peek()
-        
-        var idx = 0
-        while next.type != .RParen {
-            let rule = ext.parameterParseRules[idx]
-            let param = try rule.parse(context: parser)
-            
-            params.append(param)
-            
-            idx += 1
-            next = try parser.peek()
-            
-            if next.type != .RParen {
-                _ = try parser.expect(type: .Comma)
-            }
-        }
-        
-        _ = try parser.expect(type: .RParen)
-        
-        try ext.execute(phase: parser, parameters: params)
-    }
-}
+//class ParserExtensionRunner {
+//    static func runPhaseExtension(parser: ParseContext) throws {
+//        _ = try parser.expect(type: .Annotation)
+//        let extensionName = try TypeIdentifierRule().parse(context: parser) as! TypeIdentifierExpression
+//
+//        guard let ext = parser.extensions[extensionName.value] else {
+//            throw OrbitError(message: "Unknown PhaseExtension '\(extensionName.value)'")
+//        }
+//
+//        _ = try parser.expect(type: .LParen)
+//
+//        var params = [AbstractExpression]()
+//
+//        var next = try parser.peek()
+//
+//        var idx = 0
+//        while next.type != .RParen {
+//            let rule = ext.parameterParseRules[idx]
+//            let param = try rule.parse(context: parser)
+//
+//            params.append(param)
+//
+//            idx += 1
+//            next = try parser.peek()
+//
+//            if next.type != .RParen {
+//                _ = try parser.expect(type: .Comma)
+//            }
+//        }
+//
+//        _ = try parser.expect(type: .RParen)
+//
+//        try ext.execute(phase: parser, parameters: params)
+//    }
+//}
 
 public class ParseContext : ExtendablePhase {
     public typealias InputType = [Token]
@@ -132,11 +138,11 @@ public class ParseContext : ExtendablePhase {
     public let session: OrbitSession
     private let rules: [ParseRule]
     
-    let phaseName = "Orb::Compiler::Parser"
-    var extensions: [String : PhaseExtension] = [
-        "Orb.Compiler.Parser.RegisterInfixOperator": RegisterInfixOperator(),
-        "Orb.Compiler.Parser.SetInfixRelationship": SetInfixRelationship()
-    ]
+    public let phaseName = "Orb::Compiler::Parser"
+    public var extensions: [String : PhaseExtension] = [:]
+//        "Orb.Compiler.Parser.RegisterInfixOperator": RegisterInfixOperator(),
+//        "Orb.Compiler.Parser.SetInfixRelationship": SetInfixRelationship()
+    //]
     
     internal let callingConvention: CallingConvention
     internal var tokens: [Token] = []
