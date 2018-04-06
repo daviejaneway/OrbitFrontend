@@ -3,7 +3,7 @@ import OrbitCompilerUtils
 @testable import OrbitFrontend
 
 class OrbitFrontendTests : XCTestCase {
-    static let session = OrbitSession()
+    static let session = OrbitSession(callingConvention: LLVMCallingConvention())
     
     let pos = SourcePosition()
     

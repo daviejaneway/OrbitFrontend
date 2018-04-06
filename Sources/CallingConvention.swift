@@ -7,16 +7,7 @@
 //
 
 import Foundation
-
-public protocol NameMangler {
-    func mangleTypeIdentifier(name: String) -> String
-}
-
-public protocol CallingConvention {
-    var mangler: NameMangler { get }
-    
-    init()
-}
+import OrbitCompilerUtils
 
 public class LLVMNameMangler : NameMangler {
     
