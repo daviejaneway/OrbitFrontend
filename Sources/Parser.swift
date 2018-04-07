@@ -71,26 +71,25 @@ func nextHashValue() -> Int {
     return HashCounter
 }
 
-public protocol ExpressionAnnotation {}
-
-public struct PhaseAnnotation : ExpressionAnnotation {
+public struct PhaseAnnotation : Annotation {
+    public let identifier: String
     public let annotationExpression: AnnotationExpression
 }
 
 public protocol Expression : class {
-    var annotations: [ExpressionAnnotation] { get set }
+    var annotations: [Annotation] { get set }
     var hashValue: Int { get }
     var startToken: Token { get }
 }
 
 public extension Expression {
-    public func annotate(annotation: ExpressionAnnotation) {
+    public func annotate(annotation: Annotation) {
         self.annotations.append(annotation)
     }
 }
 
 public class AbstractExpression : Expression {
-    public var annotations = [ExpressionAnnotation]()
+    public var annotations = [Annotation]()
     public let hashValue: Int = nextHashValue()
     public let startToken: Token
     

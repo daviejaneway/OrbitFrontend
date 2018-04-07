@@ -141,6 +141,7 @@ public class Lexer : CompilationPhase {
     public typealias InputType = String
     public typealias OutputType = [Token]
     
+    public let identifier: String = "Orb::Compiler::Frontend::Lexer"
     public let session: OrbitSession
     
 	private (set) var currentPosition = SourcePosition(line: 0, character: 0)
@@ -148,7 +149,7 @@ public class Lexer : CompilationPhase {
     
     private(set) var rules: [TokenType]
     
-    public required init(session: OrbitSession) {
+    public required init(session: OrbitSession, identifier: String) {
         self.session = session
         self.rules = TokenType.base
     }

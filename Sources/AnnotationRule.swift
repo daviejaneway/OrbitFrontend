@@ -8,7 +8,7 @@
 import Foundation
 import OrbitCompilerUtils
 
-public class AnnotationExpression : AbstractExpression {
+public class AnnotationExpression : AbstractExpression, Statement {
     public let annotationName: TypeIdentifierExpression
     public let parameters: [AbstractExpression]
     
@@ -57,7 +57,7 @@ public class AnnotationRule : ParseRule {
         next = try context.peek()
         
         var idx = 0
-        let paramRule = ExpressionRule()
+        let paramRule = AnnotationParameterRule()
         while next.type != .RParen {
             
             let param = try paramRule.parse(context: context)

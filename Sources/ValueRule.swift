@@ -286,6 +286,27 @@ class InfixRule : ParseRule {
     }
 }
 
+class AnnotationParameterRule : ParseRule {
+    let name = "Orb.Core.Grammar.AnnotationParameter"
+    
+    func trigger(tokens: [Token]) throws -> Bool {
+        return true
+    }
+    
+    func parse(context: ParseContext) throws -> AbstractExpression {
+        guard let result = try context.attemptAny(of: [
+            // The order matters!
+            MethodRule(),
+            SignatureRule(),
+            ExpressionRule()
+            ]) else {
+                throw OrbitError(message: "Expected value expression")
+        }
+        
+        return result
+    }
+}
+
 class ExpressionRule : ParseRule {
     let name = "Orb.Core.Grammar.Expression"
     
@@ -388,6 +409,7 @@ class StatementRule : ParseRule {
     func parse(context: ParseContext) throws -> AbstractExpression {
         guard let result = try context.attemptAny(of: [
             // The order matters!
+            AnnotationRule(),
             DeferRule(),
             InstanceCallRule(),
             StaticCallRule(),

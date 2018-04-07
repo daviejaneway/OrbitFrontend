@@ -131,15 +131,14 @@ public protocol ExtendablePhase : CompilationPhase {
 //    }
 //}
 
-public class ParseContext : ExtendablePhase {
-    
+public class ParseContext : CompilationPhase {
     public typealias InputType = [Token]
     public typealias OutputType = AbstractExpression
     
+    public let identifier = "Orb::Compiler::Frontend::Parser"
     public let session: OrbitSession
     private let rules: [ParseRule]
     
-    public let phaseName = "Orb::Compiler::Parser"
     public var extensions: [String : PhaseExtension] = [:]
 //        "Orb.Compiler.Parser.RegisterInfixOperator": RegisterInfixOperator(),
 //        "Orb.Compiler.Parser.SetInfixRelationship": SetInfixRelationship()
@@ -150,7 +149,7 @@ public class ParseContext : ExtendablePhase {
     
     private let skipUnexpected: Bool
     
-    public required init(session: OrbitSession) {
+    public required init(session: OrbitSession, identifier: String) {
         self.session = session
         self.callingConvention = LLVMCallingConvention()
         self.rules = []

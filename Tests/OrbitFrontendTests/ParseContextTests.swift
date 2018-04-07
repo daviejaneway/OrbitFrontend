@@ -100,13 +100,25 @@ class ParseContextTests: XCTestCase {
         
         XCTAssertTrue(result is AnnotationExpression)
         XCTAssertEqual(3, (result as! AnnotationExpression).parameters.count)
+        
+        result = parse(src: "@DoSomething(XYZ, (XYZ) xyz () (XYZ) { return XYZ })", withRule: AnnotationRule())
+        
+        XCTAssertTrue(result is AnnotationExpression)
+        XCTAssertEqual(2, (result as! AnnotationExpression).parameters.count)
+        XCTAssertTrue((result as! AnnotationExpression).parameters[1] is MethodExpression)
     }
     
     func testEmptyAPI() {
-        let result = parse(src: "api Foo {}", withRule: APIRule())
+        var result = parse(src: "api Foo {}", withRule: APIRule())
         
         XCTAssertTrue(result is APIExpression)
         XCTAssertEqual("Foo", (result as! APIExpression).name.value)
+        
+        result = parse(src: "api Bar { @Foo(A, B, C) }", withRule: APIRule())
+        
+        XCTAssertTrue(result is APIExpression)
+        XCTAssertEqual("Bar", (result as! APIExpression).name.value)
+        XCTAssertTrue((result as! APIExpression).body[0] is AnnotationExpression)
     }
     
     func testWithin() {
@@ -619,7 +631,7 @@ class ParseContextTests: XCTestCase {
     }
     
     func testMethod() {
-        var result = parse(src: "(Int) foo () () {  }", withRule: MethodRule())
+        var result = parse(src: "(Int) foo () () { @Debug(This, That) }", withRule: MethodRule())
         
         XCTAssertTrue(result is MethodExpression)
         

@@ -139,7 +139,7 @@ public class ProgramRule : ParseRule {
         let program = ProgramExpression(apis: apis, startToken: start)
         
         annotations.forEach {
-            program.annotate(annotation: PhaseAnnotation(annotationExpression: $0))
+            program.annotate(annotation: PhaseAnnotation(identifier: $0.annotationName.value, annotationExpression: $0))
         }
         
         return program
@@ -184,6 +184,9 @@ public class APIRule : ParseRule {
             } else if next.type == .LParen {
                 // Parse method
                 let expr = try MethodRule().parse(context: context)
+                body.append(expr)
+            } else if next.type == .Annotation {
+                let expr = try AnnotationRule().parse(context: context)
                 body.append(expr)
             } else {
                 throw OrbitError.unexpectedToken(token: next)
