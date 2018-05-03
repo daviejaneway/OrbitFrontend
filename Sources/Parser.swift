@@ -101,13 +101,28 @@ public class AbstractExpression : Expression {
 public protocol TopLevelExpression : Expression {}
 public protocol Statement : Expression {}
 
-public class RootExpression : AbstractExpression {
+public protocol RewritableExpression : Expression {
+    func rewriteChildExpression(childExpressionHash: Int, input: AbstractExpression) throws
+}
+
+public class RootExpression : AbstractExpression, RewritableExpression {
     public var body: [Expression] = []
     
     init(body: [AbstractExpression], startToken: Token) {
         self.body = body
         
         super.init(startToken: startToken)
+    }
+    
+    public func rewriteChildExpression(childExpressionHash: Int, input: AbstractExpression) throws {
+        let indices = (self.body as! [AbstractExpression]).enumerated().filter { $0.element.hashValue == childExpressionHash }.map { $0.offset}
+        
+        guard indices.count > 0 else { throw OrbitError(message: "FATAL Multiple nodes match hash: \(childExpressionHash)") }
+        guard indices.count == 1 else { throw OrbitError(message: "FATAL No Nodes match hash: \(childExpressionHash)") }
+        
+        let idx = indices[0]
+        
+        self.body[idx] = input
     }
 }
 
@@ -116,12 +131,6 @@ public protocol NamedExpression : Expression {
 }
 
 public protocol TypedExpression : Expression {}
-
-//public protocol GroupableExpression : Expression {
-//    var grouped: Bool { get set }
-//
-//    func dump() -> String
-//}
 
 public protocol ValueExpression {
     associatedtype ValueType
@@ -653,7 +662,7 @@ public class MethodExpression : AbstractExpression, ExportableExpression {
     }
 }
 
-public class APIExpression : AbstractExpression, TopLevelExpression {
+public class APIExpression : AbstractExpression, TopLevelExpression, RewritableExpression {
     private(set) public var name: TypeIdentifierExpression
     private(set) public var body: [Expression]
     
@@ -681,6 +690,17 @@ public class APIExpression : AbstractExpression, TopLevelExpression {
     public func importAll(fromAPI: APIExpression) {
         let importables = fromAPI.body.filter { $0 is TypeDefExpression || $0 is MethodExpression }
         self.body.insert(contentsOf: importables, at: 0)
+    }
+    
+    public func rewriteChildExpression(childExpressionHash: Int, input: AbstractExpression) throws {
+        let indices = (self.body as! [AbstractExpression]).enumerated().filter { $0.element.hashValue == childExpressionHash }.map { $0.offset}
+        
+        guard indices.count > 0 else { throw OrbitError(message: "FATAL Multiple nodes match hash: \(childExpressionHash)") }
+        guard indices.count == 1 else { throw OrbitError(message: "FATAL No Nodes match hash: \(childExpressionHash)") }
+        
+        let idx = indices[0]
+        
+        self.body[idx] = input
     }
 }
 

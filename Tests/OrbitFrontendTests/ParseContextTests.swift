@@ -83,6 +83,23 @@ class ParseContextTests: XCTestCase {
         XCTAssertNil(result)
     }
     
+    func testRewrite() {
+        let token = Token(type: .Annotation, value: "")
+        
+        let rootExpression = RootExpression(body: [
+            APIExpression(name: "Test1", body: [], startToken: token),
+            APIExpression(name: "Test2", body: [], startToken: token),
+            APIExpression(name: "Test3", body: [], startToken: token)
+        ], startToken: token)
+        
+        let idx = (rootExpression.body as! [APIExpression]).filter { $0.name.value == "Test2" }[0].hashValue
+        let replacement = APIExpression(name: "Test4", body: [], startToken: token)
+        
+        try! rootExpression.rewriteChildExpression(childExpressionHash: idx, input: replacement)
+        
+        XCTAssertEqual("Test4", (rootExpression.body[1] as! APIExpression).name.value)
+    }
+    
     func testAnnotations() {
         XCTAssertThrowsError(try Operator.lookup(operatorWithSymbol: "?", inPosition: .Infix, token: Token(type: .Operator, value: "?")))
         

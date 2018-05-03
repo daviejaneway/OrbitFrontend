@@ -154,15 +154,26 @@ public class StaticCallRule : ParseRule {
     }
 }
 
-public class BlockExpression : AbstractExpression {
-    public let body: [Statement]
+public class BlockExpression : AbstractExpression, RewritableExpression {
+    private(set) public var body: [AbstractExpression & Statement]
     public let returnStatement: ReturnStatement?
     
-    init(body: [Statement], returnStatement: ReturnStatement?, startToken: Token) {
+    init(body: [AbstractExpression & Statement], returnStatement: ReturnStatement?, startToken: Token) {
         self.body = body
         self.returnStatement = returnStatement
         
         super.init(startToken: startToken)
+    }
+    
+    public func rewriteChildExpression(childExpressionHash: Int, input: AbstractExpression) throws {
+        let indices = self.body.enumerated().filter { $0.element.hashValue == childExpressionHash }.map { $0.offset}
+        
+        guard indices.count > 0 else { throw OrbitError(message: "FATAL Multiple nodes match hash: \(childExpressionHash)") }
+        guard indices.count == 1 else { throw OrbitError(message: "FATAL No Nodes match hash: \(childExpressionHash)") }
+        
+        let idx = indices[0]
+        
+        self.body[idx] = (input as! (AbstractExpression & Statement))
     }
 }
 
@@ -203,7 +214,7 @@ public class BlockRule : ParseRule {
         
         _ = try context.expect(type: .RBrace)
         
-        return BlockExpression(body: body, returnStatement: ret, startToken: start)
+        return BlockExpression(body: body as! [AbstractExpression & Statement], returnStatement: ret, startToken: start)
     }
 }
 
