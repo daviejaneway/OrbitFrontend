@@ -29,7 +29,7 @@ public protocol PhaseExtension {
     var extensionName: String { get }
     var parameterTypes: [AbstractExpression.Type] { get }
     
-    func execute<T: CompilationPhase>(phase: T, annotation: AnnotationExpression, parameterTypes: [AbstractExpression]) throws -> AbstractExpression
+    func execute<T: CompilationPhase>(phase: T, annotation: AnnotationExpression) throws -> AbstractExpression
 }
 
 extension PhaseExtension {

@@ -100,6 +100,26 @@ class ParseContextTests: XCTestCase {
         XCTAssertEqual("Test4", (rootExpression.body[1] as! APIExpression).name.value)
     }
     
+    func testAnnotate() {
+        let id = TypeIdentifierExpression(value: "Test", startToken: Token(type: .Annotation, value: "@"))
+        let expr = AnnotationExpression(annotationName: id, parameters: [], startToken: Token(type: .Annotation, value: ""))
+        
+        let annotation1 = PhaseAnnotation(identifier: "A", annotationExpression: expr)
+        let annotation2 = PhaseAnnotation(identifier: "A", annotationExpression: expr)
+        let annotation3 = PhaseAnnotation(identifier: "B", annotationExpression: expr)
+        
+        XCTAssertEqual(0, id.annotations.count)
+        
+        id.annotate(annotation: annotation1)
+        XCTAssertEqual(1, id.annotations.count)
+        
+        id.annotate(annotation: annotation2)
+        XCTAssertEqual(1, id.annotations.count)
+        
+        id.annotate(annotation: annotation3)
+        XCTAssertEqual(2, id.annotations.count)
+    }
+    
     func testAnnotations() {
         XCTAssertThrowsError(try Operator.lookup(operatorWithSymbol: "?", inPosition: .Infix, token: Token(type: .Operator, value: "?")))
         

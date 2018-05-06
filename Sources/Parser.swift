@@ -74,6 +74,10 @@ func nextHashValue() -> Int {
 public struct PhaseAnnotation : Annotation {
     public let identifier: String
     public let annotationExpression: AnnotationExpression
+    
+    public func equal(toOther annotation: Annotation) -> Bool {
+        return self.identifier == annotation.identifier
+    }
 }
 
 public protocol Expression : class {
@@ -84,6 +88,8 @@ public protocol Expression : class {
 
 public extension Expression {
     public func annotate(annotation: Annotation) {
+        guard !self.annotations.contains(where: { $0.equal(toOther: annotation) }) else { return }
+        
         self.annotations.append(annotation)
     }
 }
