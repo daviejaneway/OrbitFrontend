@@ -595,7 +595,7 @@ public class TypeDefExpression : AbstractExpression, ExportableExpression {
     
     public let constructorSignatures: [StaticSignatureExpression]
     
-    init(name: TypeIdentifierExpression, properties: [PairExpression], propertyOrder: [String : Int], constructorSignatures: [StaticSignatureExpression], adoptedTraits: [TypeIdentifierExpression] = [], startToken: Token) {
+    public init(name: TypeIdentifierExpression, properties: [PairExpression], propertyOrder: [String : Int], constructorSignatures: [StaticSignatureExpression], adoptedTraits: [TypeIdentifierExpression] = [], startToken: Token) {
         self.name = name
         self.properties = properties
         self.propertyOrder = propertyOrder
@@ -612,7 +612,7 @@ public class TraitDefExpression : AbstractExpression, ExportableExpression {
     public let properties: [PairExpression]
     public let signatures: [Expression]
     
-    init(name: TypeIdentifierExpression, properties: [PairExpression], signatures: [Expression], startToken: Token) {
+    public init(name: TypeIdentifierExpression, properties: [PairExpression], signatures: [Expression], startToken: Token) {
         self.name = name
         self.properties = properties
         self.signatures = signatures
