@@ -31,13 +31,13 @@ public class WithinRule : ParseRule {
     public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
-        return token.type == .Keyword && token.value == "within"
+        return token.type == .Keyword && Keywords.within.matches(token: token)
     }
     
     public func parse(context: ParseContext) throws -> AbstractExpression {
         let keyword = try context.consume()
         
-        guard keyword.value == "within" else { throw OrbitError.unexpectedToken(token: keyword) }
+        guard Keywords.within.matches(token: keyword) else { throw OrbitError.unexpectedToken(token: keyword) }
         
         let nameParser = TypeIdentifierRule()
         
@@ -67,7 +67,7 @@ public class WithRule : ParseRule {
     public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
-        return token.type == .Keyword && token.value == "with"
+        return token.type == .Keyword && Keywords.with.matches(token: token)
     }
     
     public func parse(context: ParseContext) throws -> AbstractExpression {
@@ -77,7 +77,7 @@ public class WithRule : ParseRule {
         let nameParser = TypeIdentifierRule()
         
         var next = start
-        while next.value == "with" {
+        while Keywords.with.matches(token: next) {
             _ = try context.consume()
             let name = try nameParser.parse(context: context) as! TypeIdentifierExpression
             
@@ -152,7 +152,7 @@ public class APIRule : ParseRule {
     public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
-        return token.type == .Keyword && token.value == "api"
+        return token.type == .Keyword && Keywords.api.matches(token: token)
     }
     
     public func parse(context: ParseContext) throws -> AbstractExpression {
@@ -177,7 +177,7 @@ public class APIRule : ParseRule {
         var body = [AbstractExpression]()
         
         while next.type != .RBrace {
-            if next.type == .Keyword && next.value == "type" {
+            if next.type == .Keyword && Keywords.type.matches(token: next) {
                 // Parse type def
                 let expr = try TypeDefRule().parse(context: context)
                 body.append(expr)

@@ -15,7 +15,7 @@ public class TypeDefRule : ParseRule {
     public func trigger(tokens: [Token]) throws -> Bool {
         guard let first = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
-        return first.type == .Keyword && first.value == "type"
+        return first.type == .Keyword && Keywords.type.matches(token: first)
     }
     
     public func parse(context: ParseContext) throws -> AbstractExpression {

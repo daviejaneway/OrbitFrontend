@@ -135,13 +135,13 @@ public class DeferRule : ParseRule {
     public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
-        return token.type == .Keyword && token.value == "defer"
+        return token.type == .Keyword && Keywords.defer.matches(token: token)
     }
     
     public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: .Keyword)
         
-        guard start.value == "defer" else { throw OrbitError.unexpectedToken(token: start) }
+        guard Keywords.defer.matches(token: start) else { throw OrbitError.unexpectedToken(token: start) }
         
         let block = try BlockRule().parse(context: context) as! BlockExpression
         

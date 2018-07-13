@@ -396,13 +396,13 @@ class ReturnRule : ParseRule {
     func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
-        return token.type == .Keyword && token.value == "return"
+        return token.type == .Keyword && Keywords.return.matches(token: token)
     }
     
     func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: .Keyword)
         
-        guard start.value == "return" else { throw OrbitError.unexpectedToken(token: start) }
+        guard Keywords.return.matches(token: start) else { throw OrbitError.unexpectedToken(token: start) }
         
         let value = try ExpressionRule().parse(context: context)
         
