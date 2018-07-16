@@ -66,6 +66,8 @@ public class InstanceSignatureRule : BaseSignatureRule {
 public class StaticSignatureRule : BaseSignatureRule {
     public let name = "Orb.Core.Grammar.Signature"
     
+    public init() {}
+    
     public func parse(context: ParseContext) throws -> AbstractExpression {
         let start = try context.expect(type: .LParen)
         let receiver = try TypeIdentifierRule().parse(context: context) as! TypeIdentifierExpression
@@ -109,6 +111,8 @@ public class StaticSignatureRule : BaseSignatureRule {
 
 public class SignatureRule : BaseSignatureRule {
     public let name = "Orb.Core.Grammar.Signature"
+    
+    public init() {}
     
     public func parse(context: ParseContext) throws -> AbstractExpression {
         guard let expr = try context.attemptAny(of: [StaticSignatureRule(), InstanceSignatureRule()]) else {

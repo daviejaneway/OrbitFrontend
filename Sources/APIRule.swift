@@ -149,6 +149,8 @@ public class ProgramRule : ParseRule {
 public class APIRule : ParseRule {
     public let name = "Orb.Core.Grammar.API"
     
+    public init() {}
+    
     public func trigger(tokens: [Token]) throws -> Bool {
         guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
         

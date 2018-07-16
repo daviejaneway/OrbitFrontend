@@ -12,6 +12,8 @@ import OrbitCompilerUtils
 public class TypeDefRule : ParseRule {
     public let name = "Orb.Core.Grammar.TypeDef"
     
+    public init() {}
+    
     public func trigger(tokens: [Token]) throws -> Bool {
         guard let first = tokens.first else { throw OrbitError.ranOutOfTokens() }
         
