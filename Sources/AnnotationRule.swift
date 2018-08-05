@@ -8,7 +8,7 @@
 import Foundation
 import OrbitCompilerUtils
 
-public class AnnotationExpression : AbstractExpression, Statement {
+public class AnnotationExpression : AbstractExpression, Statement, RValueExpression {
     public let annotationName: TypeIdentifierExpression
     public let parameters: [AbstractExpression]
     
