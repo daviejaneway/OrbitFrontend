@@ -452,6 +452,12 @@ class ParseContextTests: XCTestCase {
         
         XCTAssertTrue(result is AssignmentStatement)
         XCTAssertTrue((result as! AssignmentStatement).value is AnnotationExpression)
+        
+        result = parse(src: "x Int = @Add(1, 2)", withRule: AssignmentRule())
+        
+        XCTAssertTrue(result is AssignmentStatement)
+        XCTAssertTrue((result as! AssignmentStatement).value is AnnotationExpression)
+        XCTAssertTrue((result as! AssignmentStatement).type != nil)
     }
     
     func testUnary() {

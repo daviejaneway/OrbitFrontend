@@ -723,10 +723,12 @@ public class ReturnStatement : AbstractExpression, Statement {
 public class AssignmentStatement : AbstractExpression, Statement {
     public let name: IdentifierExpression
     public let value: AbstractExpression
+    public let type: TypeIdentifierExpression?
     
-    public init(name: IdentifierExpression, value: AbstractExpression, startToken: Token) {
+    public init(name: IdentifierExpression, type: TypeIdentifierExpression?, value: AbstractExpression, startToken: Token) {
         self.name = name
         self.value = value
+        self.type = type
         
         super.init(startToken: startToken)
     }

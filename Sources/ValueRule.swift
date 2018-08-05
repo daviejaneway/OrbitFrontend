@@ -419,11 +419,25 @@ class AssignmentRule : ParseRule {
     }
     
     func parse(context: ParseContext) throws -> AbstractExpression {
-        let identifier = try IdentifierRule().parse(context: context)
+        guard let lhs = try context.attemptAny(of: [PairRule(), IdentifierRule()]) else {
+            throw OrbitError(message: "Expected Pair or Identifier on left-hand side of assignment")
+        }
+        
+        let identifier: IdentifierExpression
+        let type: TypeIdentifierExpression?
+        
+        if let pair = lhs as? PairExpression {
+            identifier = pair.name
+            type = pair.type
+        } else {
+            identifier = lhs as! IdentifierExpression
+            type = nil
+        }
+        
         _ = try context.expect(type: .Assignment)
         let rhs = try ExpressionRule().parse(context: context)
         
-        return AssignmentStatement(name: identifier as! IdentifierExpression, value: rhs, startToken: identifier.startToken)
+        return AssignmentStatement(name: identifier, type: type, value: rhs, startToken: identifier.startToken)
     }
 }
 
