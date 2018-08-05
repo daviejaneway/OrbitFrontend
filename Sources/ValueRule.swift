@@ -375,6 +375,7 @@ class PrimaryRule : ParseRule {
         guard let result = try context.attemptAny(of: [
             // The order matters!
             BlockRule(),
+            AnnotationRule(),
             InstanceCallRule(),
             StaticCallRule(),
             RealLiteralRule(),
@@ -410,6 +411,22 @@ class ReturnRule : ParseRule {
     }
 }
 
+class AssignmentRule : ParseRule {
+    let name = "Orb.Core.Grammar.Assignment"
+    
+    func trigger(tokens: [Token]) throws -> Bool {
+        return true
+    }
+    
+    func parse(context: ParseContext) throws -> AbstractExpression {
+        let identifier = try IdentifierRule().parse(context: context)
+        _ = try context.expect(type: .Assignment)
+        let rhs = try ExpressionRule().parse(context: context)
+        
+        return AssignmentStatement(name: identifier as! IdentifierExpression, value: rhs, startToken: identifier.startToken)
+    }
+}
+
 class StatementRule : ParseRule {
     let name = "Orb.Core.Grammar.Statement"
     
@@ -420,6 +437,7 @@ class StatementRule : ParseRule {
     func parse(context: ParseContext) throws -> AbstractExpression {
         guard let result = try context.attemptAny(of: [
             // The order matters!
+            AssignmentRule(),
             AnnotationRule(),
             DeferRule(),
             InstanceCallRule(),

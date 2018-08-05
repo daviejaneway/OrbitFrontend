@@ -724,7 +724,7 @@ public class AssignmentStatement : AbstractExpression, Statement {
     public let name: IdentifierExpression
     public let value: AbstractExpression
     
-    init(name: IdentifierExpression, value: AbstractExpression, startToken: Token) {
+    public init(name: IdentifierExpression, value: AbstractExpression, startToken: Token) {
         self.name = name
         self.value = value
         

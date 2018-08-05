@@ -435,6 +435,25 @@ class ParseContextTests: XCTestCase {
         _ = parse(src: "(123.1))", withRule: RealLiteralRule(), expectFail: true)
     }
     
+    func testAssignment() {
+        var result = parse(src: "x = 1", withRule: AssignmentRule())
+        
+        XCTAssertTrue(result is AssignmentStatement)
+        XCTAssertEqual("x", (result as! AssignmentStatement).name.value)
+        XCTAssertEqual(1, ((result as! AssignmentStatement).value as! IntLiteralExpression).value)
+        
+        result = parse(src: "this_var = 2 + 2", withRule: AssignmentRule())
+        
+        XCTAssertTrue(result is AssignmentStatement)
+        XCTAssertEqual("this_var", (result as! AssignmentStatement).name.value)
+        XCTAssertTrue((result as! AssignmentStatement).value is BinaryExpression)
+        
+        result = parse(src: "this_var = @String(hello)", withRule: AssignmentRule())
+        
+        XCTAssertTrue(result is AssignmentStatement)
+        XCTAssertTrue((result as! AssignmentStatement).value is AnnotationExpression)
+    }
+    
     func testUnary() {
         var result = parse(src: "-1", withRule: UnaryRule())
         
