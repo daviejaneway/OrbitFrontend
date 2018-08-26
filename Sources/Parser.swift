@@ -247,6 +247,19 @@ public class BoolLiteralExpression : AbstractExpression, LiteralExpression, Valu
     }
 }
 
+public class ListLiteralExpression : AbstractExpression, LiteralExpression, ValueExpression, RValueExpression {
+    public typealias ValueType = [Any]
+    
+    public var value: [Any]
+    
+    init(value: [Any], startToken: Token) {
+        self.value = value
+        
+        super.init(startToken: startToken)
+    }
+    
+}
+
 public class CharacterLiteralExpression : AbstractExpression, LiteralExpression, ValueExpression, RValueExpression {
     public typealias ValueType = String
     

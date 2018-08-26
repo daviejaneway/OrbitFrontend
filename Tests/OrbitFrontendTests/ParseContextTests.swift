@@ -435,6 +435,24 @@ class ParseContextTests: XCTestCase {
         _ = parse(src: "(123.1))", withRule: RealLiteralRule(), expectFail: true)
     }
     
+    func testListLiteral() {
+        var result = parse(src: "[1, 2, 3]", withRule: ListLiteralRule())
+        
+        XCTAssertTrue(result is ListLiteralExpression)
+        XCTAssertEqual(3, (result as! ListLiteralExpression).value.count)
+        
+        result = parse(src: "[a]", withRule: ListLiteralRule())
+        
+        XCTAssertTrue(result is ListLiteralExpression)
+        XCTAssertEqual(1, (result as! ListLiteralExpression).value.count)
+        
+        result = parse(src: "[1, [a, 2, 3.1], c]", withRule: ListLiteralRule())
+        
+        XCTAssertTrue(result is ListLiteralExpression)
+        XCTAssertEqual(3, (result as! ListLiteralExpression).value.count)
+        XCTAssertTrue((result as! ListLiteralExpression).value[1] is ListLiteralExpression)
+    }
+    
     func testAssignment() {
         var result = parse(src: "x = 1", withRule: AssignmentRule())
         

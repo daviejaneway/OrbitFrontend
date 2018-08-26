@@ -64,6 +64,59 @@ public class RealLiteralRule : ParseRule {
     }
 }
 
+public class ListLiteralRule : ParseRule {
+    public let name = "Orb.Core.Grammar.Literal.List"
+    
+    public func trigger(tokens: [Token]) throws -> Bool {
+        return false
+    }
+    
+    public func parse(context: ParseContext) throws -> AbstractExpression {
+        let startToken = try context.expectAny(types: [.LBracket], consumes: true)
+        let delimitedRule = DelimitedRule(delimiter: .Comma, elementRule: ExpressionRule())
+        
+        guard let delim = try delimitedRule.parse(context: context) as? DelimitedExpression else {
+            throw OrbitError(message: "FATAL Weird list literal")
+        }
+        
+        _ = try context.expect(type: .RBracket)
+        
+        return ListLiteralExpression(value: delim.expressions, startToken: startToken)
+    }
+}
+
+//private class PathLiteralRule : ParseRule {
+//    public let name = "Orb.Core.Grammar.Literal.Path"
+//    
+//    func trigger(tokens: [Token]) throws -> Bool {
+//        return true
+//    }
+//
+//    func parse(context: ParseContext) throws -> AbstractExpression {
+//        guard let component
+//    }
+//}
+//
+//public class URLLiteralRule : ParseRule {
+//    public let name = "Orb.Core.Grammar.Literal.URL"
+//
+//    public func trigger(tokens: [Token]) throws -> Bool {
+//        return true
+//    }
+//
+//    public func parse(context: ParseContext) throws -> AbstractExpression {
+//        let scheme = try IdentifierRule().parse(context: context) as! IdentifierExpression
+//
+//        let separator: (Token) -> Bool = { token in return token.value == "/" }
+//
+//        _ = try context.expect(type: .Colon)
+//        _ = try context.expect(type: .Operator, overrideError: nil, requirements: separator)
+//        _ = try context.expect(type: .Operator, overrideError: nil, requirements: separator)
+//
+//
+//    }
+//}
+
 // TODO: Instance calls
 
 public class InstanceCallRule : ParseRule {
@@ -374,6 +427,7 @@ class PrimaryRule : ParseRule {
         
         guard let result = try context.attemptAny(of: [
             // The order matters!
+            ListLiteralRule(),
             BlockRule(),
             AnnotationRule(),
             InstanceCallRule(),
