@@ -752,6 +752,18 @@ public protocol CallExpression : Statement, RValueExpression {
     var args: [RValueExpression] { get }
 }
 
+public class ConstructorCallExpression : AbstractExpression {
+    public let receiver: TypeIdentifierExpression
+    public let args: [RValueExpression]
+    
+    public init(receiver: TypeIdentifierExpression, args: [RValueExpression], startToken: Token) {
+        self.receiver = receiver
+        self.args = args
+        
+        super.init(startToken: startToken)
+    }
+}
+
 public class StaticCallExpression : AbstractExpression, CallExpression {
     public let receiver: TypeIdentifierExpression
     public let methodName: IdentifierExpression

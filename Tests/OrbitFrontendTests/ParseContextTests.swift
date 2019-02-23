@@ -337,6 +337,32 @@ class ParseContextTests: XCTestCase {
         XCTAssertEqual(1, (result as! DelimitedExpression).expressions.count)
     }
     
+    func testConstructorCall() {
+        var result = parse(src: "A()", withRule: ConstructorCallRule())
+        
+        XCTAssertTrue(result is ConstructorCallExpression)
+        XCTAssertEqual("A", (result as! ConstructorCallExpression).receiver.value)
+        XCTAssertTrue((result as! ConstructorCallExpression).args.isEmpty)
+        
+        result = parse(src: "A(x)", withRule: ConstructorCallRule())
+        
+        XCTAssertTrue(result is ConstructorCallExpression)
+        XCTAssertEqual("A", (result as! ConstructorCallExpression).receiver.value)
+        XCTAssertEqual(1, (result as! ConstructorCallExpression).args.count)
+        
+        result = parse(src: "A(x, b, c)", withRule: ConstructorCallRule())
+        
+        XCTAssertTrue(result is ConstructorCallExpression)
+        XCTAssertEqual("A", (result as! ConstructorCallExpression).receiver.value)
+        XCTAssertEqual(3, (result as! ConstructorCallExpression).args.count)
+        
+        result = parse(src: "A([a, b, c])", withRule: ConstructorCallRule())
+        
+        XCTAssertTrue(result is ConstructorCallExpression)
+        XCTAssertEqual("A", (result as! ConstructorCallExpression).receiver.value)
+        XCTAssertEqual(1, (result as! ConstructorCallExpression).args.count)
+    }
+    
     func testStaticCall() {
         var result = parse(src: "X.y()", withRule: StaticCallRule())
         

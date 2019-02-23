@@ -117,8 +117,6 @@ public class ListLiteralRule : ParseRule {
 //    }
 //}
 
-// TODO: Instance calls
-
 public class InstanceCallRule : ParseRule {
     public let name = "Orb.Core.Grammar.InstanceCall"
     
@@ -158,6 +156,50 @@ public class InstanceCallRule : ParseRule {
         _ = try context.expect(type: .RParen)
         
         return InstanceCallExpression(receiver: receiver, methodName: fname, args: arguments.expressions as! [RValueExpression], startToken: start)
+    }
+}
+
+public class ConstructorCallRule : ParseRule {
+    public let name = "Orb.Core.Grammar.ConstructorCall"
+    
+    public func trigger(tokens: [Token]) throws -> Bool {
+        guard let token = tokens.first else { throw OrbitError.ranOutOfTokens() }
+        
+        return token.type == .TypeIdentifier
+    }
+    
+    public func parse(context: ParseContext) throws -> AbstractExpression {
+        let start = try context.peek()
+        
+        if start.type == .LParen {
+            _ = try context.consume()
+            
+            let expr = try parse(context: context)
+            
+            _ = try context.expect(type: .RParen)
+            
+            return expr
+        }
+        
+        let receiverRule = TypeIdentifierRule()
+        let receiver = try receiverRule.parse(context: context) as! TypeIdentifierExpression
+        
+        let _ = try context.expect(type: .LParen)
+        
+        let next = try context.peek()
+        
+        if next.type == .RParen {
+            let _ = try context.expect(type: .RParen)
+            
+            return ConstructorCallExpression(receiver: receiver, args: [], startToken: start)
+        }
+        
+        let rule = DelimitedRule(delimiter: .Comma, elementRule: ExpressionRule())
+        let args = try rule.parse(context: context) as! DelimitedExpression
+        
+        let _ = try context.expect(type: .RParen)
+        
+        return ConstructorCallExpression(receiver: receiver, args: args.expressions as! [RValueExpression], startToken: start)
     }
 }
 
@@ -430,6 +472,7 @@ class PrimaryRule : ParseRule {
             ListLiteralRule(),
             BlockRule(),
             AnnotationRule(),
+            ConstructorCallRule(),
             InstanceCallRule(),
             StaticCallRule(),
             RealLiteralRule(),
